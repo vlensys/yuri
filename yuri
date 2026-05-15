@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+
+import sys
+
+
+def _usage() -> None:
+    print("usage:")
+    print("  yuri read <name>            read manga")
+    print("  yuri manga read <name>      read manga")
+    print("  yuri manga search <name>    search manga")
+    print("  yuri novel read <name>      read a novel")
+    print("  yuri novel search <name>    search novels")
+    sys.exit(1)
+
+
+def _do_manga_read(name: str) -> None:
+    from yuri_cli.manga_read import run
+    run(name)
+
+
+def _do_manga_search(name: str) -> None:
+    from yuri_cli.sources import mangadex
+    results = mangadex.search(name)
+    if not results:
+        print("no results found.")
+        sys.exit(0)
+    for r in results:
+        print(f"  {r.title}  [{', '.join(r.tags[:4])}]")
+
+
+def _do_novel_read(name: str) -> None:
+    from yuri_cli.novel_read import run
+    run(name)
+
+
+def _do_novel_search(name: str) -> None:
+    from yuri_cli.sources import dynasty
+    results = dynasty.search(name)
+    if not results:
+        print("no results found.")
+        sys.exit(0)
+    for r in results:
+        print(f"  {r.title}")
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    if not args:
+        _usage()
+
+    cmd = args[0].lower()
+
+    if cmd == "read":
+        if len(args) < 2:
+            print("usage: yuri read <name>")
+            sys.exit(1)
+        _do_manga_read(" ".join(args[1:]))
+
+    elif cmd == "search":
+        if len(args) < 2:
+            print("usage: yuri search <name>")
+            sys.exit(1)
+        _do_manga_search(" ".join(args[1:]))
+
+    elif cmd == "manga":
+        if len(args) < 3:
+            print("usage: yuri manga read <name>")
+            sys.exit(1)
+        sub  = args[1].lower()
+        name = " ".join(args[2:])
+        if sub == "read":
+            _do_manga_read(name)
+        elif sub == "search":
+            _do_manga_search(name)
+        else:
+            print(f"unknown subcommand: {sub}")
+            _usage()
+
+    elif cmd == "novel":
+        if len(args) < 3:
+            print("usage: yuri novel read <name>")
+            sys.exit(1)
+        sub  = args[1].lower()
+        name = " ".join(args[2:])
+        if sub == "read":
+            _do_novel_read(name)
+        elif sub == "search":
+            _do_novel_search(name)
+        else:
+            print(f"unknown subcommand: {sub}")
+            _usage()
+
+    else:
+        print(f"unknown command: {cmd}")
+        _usage()
+
+
+if __name__ == "__main__":
+    main()
