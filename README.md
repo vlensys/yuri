@@ -37,4 +37,4 @@ yuri watch "Adachi and Shimamura"
 |---|---|
 | manga | [MangaDex](https://mangadex.org/), [Dynasty Scans](https://dynasty-scans.com/) |
 | light novel | [Dynasty Reader](https://dynasty-scans.com/) |
-| anime | [AllAnime](https://allanime.to/) |
+| anime | [AllAnime](https://allanime.to/), [Anime.Nexus](https://anime.nexus/)|

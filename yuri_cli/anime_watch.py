@@ -4,16 +4,16 @@ import sys
 import time
 from typing import List, Optional
 
-from yuri_cli.lock import filter_kind
+from yuri_cli.lock import filter_kind, filter_yuri
 from yuri_cli.models import Chapter, SearchResult
 from yuri_cli.reader import pick
-from yuri_cli.sources import allanime
+from yuri_cli.sources import allanime, animenexus
 
 
 def _player() -> str:
     player = shutil.which("mpv")
     if not player:
-        sys.exit("mpv is required to watch anime.")
+        sys.exit("mpv is required to watch anime. please install it!!")
     return player
 
 
@@ -28,7 +28,7 @@ def _stop_player(player: Optional[subprocess.Popen]) -> None:
         player.wait()
 
 
-def _play(stream: allanime.Stream, title: str, episode: str) -> Optional[subprocess.Popen]:
+def _play(stream, title: str, episode: str) -> Optional[subprocess.Popen]:
     command = [
         _player(),
         "--really-quiet",
@@ -56,8 +56,26 @@ def _play(stream: allanime.Stream, title: str, episode: str) -> Optional[subproc
     return player
 
 
-def _episodes(show_id: str, mode: str) -> List[Chapter]:
-    return allanime.episodes(show_id, mode)
+def _search_all(name: str) -> List[SearchResult]:
+    results: List[SearchResult] = []
+    for source_name, source in (("allanime", allanime), ("animenexus", animenexus)):
+        try:
+            results.extend(source.search(name))
+        except Exception as exc:
+            print(f"search failed for {source_name}: {exc}")
+    return results
+
+
+def _episodes(chosen: SearchResult, mode: str) -> List[Chapter]:
+    if chosen.source == "allanime":
+        return allanime.episodes(chosen.id, mode)
+    return animenexus.episodes(chosen.id, mode)
+
+
+def _streams(chosen: SearchResult, episode: Chapter, mode: str):
+    if chosen.source == "allanime":
+        return allanime.streams(chosen.id, episode.id, mode)
+    return animenexus.streams(chosen.id, episode.id, mode)
 
 
 def _pick_episode(episodes: List[Chapter]) -> Optional[int]:
@@ -73,7 +91,7 @@ def _play_episode(
     print(f"\n{chosen.title} - {episode.title} [{mode}]")
     print("loading stream...")
     try:
-        streams = allanime.streams(chosen.id, episode.id, mode)
+        streams = _streams(chosen, episode, mode)
     except PermissionError as exc:
         sys.exit(str(exc))
     except Exception as exc:
@@ -105,17 +123,15 @@ def _next_action(mode: str) -> str:
 
 
 def run(name: str) -> None:
-    print(f"searching allanime for '{name}'...")
-    try:
-        results: List[SearchResult] = allanime.search(name)
-    except Exception as exc:
-        sys.exit(f"search failed: {exc}")
+    print(f"searching for '{name}'...")
+    results = _search_all(name)
     results = filter_kind(results, "anime")
+    results = filter_yuri(results)
 
     if not results:
         sys.exit("no yuri/gl anime results found.")
 
-    labels = [f"{r.title}  [{', '.join(r.tags[:3])}]" for r in results]
+    labels = [f"[{r.source}]  {r.title}  [{', '.join(r.tags[:3])}]" for r in results]
     idx = pick(labels, "select anime")
     if idx is None:
         sys.exit("cancelled.")
@@ -125,7 +141,7 @@ def run(name: str) -> None:
     mode = "sub"
     print(f"fetching {mode} episodes...")
     try:
-        episodes: List[Chapter] = _episodes(chosen.id, mode)
+        episodes: List[Chapter] = _episodes(chosen, mode)
     except PermissionError as exc:
         sys.exit(str(exc))
     except Exception as exc:
@@ -159,12 +175,12 @@ def run(name: str) -> None:
                 new_mode = "dub" if mode == "sub" else "sub"
                 print(f"fetching {new_mode} episodes...")
                 try:
-                    new_episodes = _episodes(chosen.id, new_mode)
+                    new_episodes = _episodes(chosen, new_mode)
                 except Exception as exc:
                     print(f"could not fetch {new_mode} episodes: {exc}")
                     continue
                 if not new_episodes:
-                    print(f"no {new_mode} episodes found.")
+                    print(f"no {new_mode} episodes found. shucks")
                     continue
                 current_number = episodes[ep_idx].number
                 mode = new_mode
