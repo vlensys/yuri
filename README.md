@@ -9,7 +9,7 @@
 - `yuri read {manga/ln}` - find a specific manga/ln, and read it!
 - `yuri watch {anime}` - find a specific anime, and watch it!
 
-## sources (more coming as soon)
+## sources (work in progress cause light novel sources suck)
 ### light novel
 - dynasty reader
 ### manga
