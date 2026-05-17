@@ -4,6 +4,7 @@ import sys
 
 
 def _usage() -> None:
+    print("yuri straight in your terminal!")
     print("usage:")
     print("  yuri read <name>            read manga")
     print("  yuri manga read <name>      read manga")
