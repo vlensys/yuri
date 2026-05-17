@@ -153,10 +153,10 @@ def show(show_id: str) -> dict:
     return found
 
 
-def episodes(show_id: str) -> List[Chapter]:
+def episodes(show_id: str, translation_type: str = "sub") -> List[Chapter]:
     found = show(show_id)
     detail = found.get("availableEpisodesDetail") or {}
-    values = detail.get("sub") or detail.get("dub") or []
+    values = detail.get(translation_type) or []
     chapters: List[Chapter] = []
     for raw in values:
         label = str(raw)

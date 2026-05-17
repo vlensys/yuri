@@ -1,7 +1,7 @@
 import shutil
 import subprocess
 import sys
-from typing import List
+from typing import List, Optional
 
 from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
@@ -16,9 +16,10 @@ def _player() -> str:
     return player
 
 
-def _play(stream: allanime.Stream, title: str, episode: str) -> None:
+def _play(stream: allanime.Stream, title: str, episode: str) -> bool:
     command = [
         _player(),
+        "--really-quiet",
         f"--force-media-title={title} episode {episode}",
     ]
     if stream.referer:
@@ -26,7 +27,54 @@ def _play(stream: allanime.Stream, title: str, episode: str) -> None:
     if stream.subtitle_url:
         command.append(f"--sub-file={stream.subtitle_url}")
     command.append(stream.url)
-    subprocess.run(command, check=False)
+    result = subprocess.run(
+        command,
+        check=False,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return result.returncode == 0
+
+
+def _episodes(show_id: str, mode: str) -> List[Chapter]:
+    return allanime.episodes(show_id, mode)
+
+
+def _pick_episode(episodes: List[Chapter]) -> Optional[int]:
+    ep_labels = [ep.title for ep in episodes]
+    return pick(ep_labels, "select episode")
+
+
+def _play_episode(chosen: SearchResult, episode: Chapter, mode: str) -> bool:
+    print(f"\n{chosen.title} - {episode.title} [{mode}]")
+    print("loading stream...")
+    try:
+        streams = allanime.streams(chosen.id, episode.id, mode)
+    except PermissionError as exc:
+        sys.exit(str(exc))
+    except Exception as exc:
+        print(f"could not fetch streams: {exc}")
+        return False
+
+    if not streams:
+        print("no playable streams found.")
+        return False
+
+    for stream in streams:
+        if _play(stream, chosen.title, episode.id):
+            return True
+    print("all streams failed.")
+    return False
+
+
+def _next_action(mode: str) -> str:
+    try:
+        raw = input(
+            f"\n[{mode}] enter next  p previous  r replay  e episode  d toggle dub  q quit > "
+        )
+    except (EOFError, KeyboardInterrupt):
+        return "q"
+    return raw.strip().lower() or "n"
 
 
 def run(name: str) -> None:
@@ -47,9 +95,10 @@ def run(name: str) -> None:
     chosen = results[idx]
 
     print(f"\n{chosen.title}")
-    print("fetching episodes...")
+    mode = "sub"
+    print(f"fetching {mode} episodes...")
     try:
-        episodes: List[Chapter] = allanime.episodes(chosen.id)
+        episodes: List[Chapter] = _episodes(chosen.id, mode)
     except PermissionError as exc:
         sys.exit(str(exc))
     except Exception as exc:
@@ -58,22 +107,44 @@ def run(name: str) -> None:
     if not episodes:
         sys.exit("no subbed episodes found.")
 
-    ep_labels = [ep.title for ep in episodes]
-    ep_idx = pick(ep_labels, "select episode")
+    ep_idx = _pick_episode(episodes)
     if ep_idx is None:
         sys.exit("cancelled.")
-    episode = episodes[ep_idx]
 
-    print(f"\n{episode.title}")
-    print("fetching streams...")
-    try:
-        streams = allanime.streams(chosen.id, episode.id)
-    except PermissionError as exc:
-        sys.exit(str(exc))
-    except Exception as exc:
-        sys.exit(f"could not fetch streams: {exc}")
+    while True:
+        _play_episode(chosen, episodes[ep_idx], mode)
+        action = _next_action(mode)
 
-    if not streams:
-        sys.exit("no playable streams found.")
-
-    _play(streams[0], chosen.title, episode.id)
+        if action == "q":
+            break
+        if action == "p":
+            ep_idx = max(0, ep_idx - 1)
+        elif action == "r":
+            pass
+        elif action == "e":
+            picked = _pick_episode(episodes)
+            if picked is not None:
+                ep_idx = picked
+        elif action == "d":
+            new_mode = "dub" if mode == "sub" else "sub"
+            print(f"fetching {new_mode} episodes...")
+            try:
+                new_episodes = _episodes(chosen.id, new_mode)
+            except Exception as exc:
+                print(f"could not fetch {new_mode} episodes: {exc}")
+                continue
+            if not new_episodes:
+                print(f"no {new_mode} episodes found.")
+                continue
+            current_number = episodes[ep_idx].number
+            mode = new_mode
+            episodes = new_episodes
+            ep_idx = min(
+                range(len(episodes)),
+                key=lambda index: abs(episodes[index].number - current_number),
+            )
+        else:
+            if ep_idx >= len(episodes) - 1:
+                print("last episode.")
+            else:
+                ep_idx += 1
