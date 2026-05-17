@@ -1,6 +1,6 @@
 # yuri
 
-> read n watch some yuri in ur very own terminal
+> yuri straight in your terminal!
 ---
 ## requirements
 
