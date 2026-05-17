@@ -12,7 +12,7 @@
 
 ## sources (more coming as soon)
 ### light novel
-- baka-tsuki/jnovels
+- none for now, light novels dont have one good libary lol
 ### manga
 - mangadex
 ### anime
