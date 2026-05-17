@@ -3,6 +3,7 @@ from typing import List
 
 from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
+from yuri_cli.progress import get_last, set_last
 from yuri_cli.reader import pick, read_pages
 from yuri_cli.sources import dynasty, mangadex
 
@@ -45,6 +46,17 @@ def _chapter_pages(chapter: Chapter) -> List[str]:
     return mangadex.chapter_pages(chapter.id)
 
 
+def _ordered_chapters(chapters: List[Chapter], chosen: SearchResult) -> List[Chapter]:
+    last_id = get_last(chosen.source, chosen.id)
+    if not last_id:
+        return chapters
+    last = next((ch for ch in chapters if ch.id == last_id), None)
+    if last is None:
+        return chapters
+    rest = [ch for ch in chapters if ch.id != last_id]
+    return [last] + rest
+
+
 def run(name: str) -> None:
     print(f"searching manga sources for '{name}'...")
     try:
@@ -68,20 +80,24 @@ def run(name: str) -> None:
     print(f"\n{chosen.title} [{_source_label(chosen.source)}]")
     print("fetching chapters...")
     try:
-        chs: List[Chapter] = _chapters(chosen)
+        raw_chs: List[Chapter] = _chapters(chosen)
     except PermissionError as exc:
         sys.exit(str(exc))
     except Exception as exc:
         sys.exit(f"could not fetch chapters: {exc}")
 
-    if not chs:
+    if not raw_chs:
         sys.exit("no english chapters found.")
+
+    chs = _ordered_chapters(raw_chs, chosen)
 
     ch_labels = [f"ch.{ch.number:g}  {ch.title}" for ch in chs]
     ch_idx = pick(ch_labels, "select chapter")
     if ch_idx is None:
         sys.exit("cancelled.")
     chapter = chs[ch_idx]
+
+    set_last(chosen.source, chosen.id, chapter.id)
 
     print(f"\n{chapter.title}")
     print("fetching pages...")

@@ -6,6 +6,7 @@ from typing import List, Optional
 
 from yuri_cli.lock import filter_kind, filter_yuri
 from yuri_cli.models import Chapter, SearchResult
+from yuri_cli.progress import get_last, set_last
 from yuri_cli.reader import pick
 from yuri_cli.sources import allanime, animenexus
 
@@ -13,7 +14,7 @@ from yuri_cli.sources import allanime, animenexus
 def _player() -> str:
     player = shutil.which("mpv")
     if not player:
-        sys.exit("mpv is required to watch anime. please install it!!")
+        sys.exit("mpv is required to watch anime.")
     return player
 
 
@@ -76,6 +77,17 @@ def _streams(chosen: SearchResult, episode: Chapter, mode: str):
     if chosen.source == "allanime":
         return allanime.streams(chosen.id, episode.id, mode)
     return animenexus.streams(chosen.id, episode.id, mode)
+
+
+def _ordered_episodes(episodes: List[Chapter], chosen: SearchResult) -> List[Chapter]:
+    last_id = get_last(chosen.source, chosen.id)
+    if not last_id:
+        return episodes
+    last = next((ep for ep in episodes if ep.id == last_id), None)
+    if last is None:
+        return episodes
+    rest = [ep for ep in episodes if ep.id != last_id]
+    return [last] + rest
 
 
 def _pick_episode(episodes: List[Chapter]) -> Optional[int]:
@@ -141,14 +153,16 @@ def run(name: str) -> None:
     mode = "sub"
     print(f"fetching {mode} episodes...")
     try:
-        episodes: List[Chapter] = _episodes(chosen, mode)
+        raw_episodes: List[Chapter] = _episodes(chosen, mode)
     except PermissionError as exc:
         sys.exit(str(exc))
     except Exception as exc:
         sys.exit(f"could not fetch episodes: {exc}")
 
-    if not episodes:
+    if not raw_episodes:
         sys.exit("no subbed episodes found.")
+
+    episodes = _ordered_episodes(raw_episodes, chosen)
 
     ep_idx = _pick_episode(episodes)
     if ep_idx is None:
@@ -158,6 +172,7 @@ def run(name: str) -> None:
     try:
         while True:
             _stop_player(player)
+            set_last(chosen.source, chosen.id, episodes[ep_idx].id)
             player = _play_episode(chosen, episodes[ep_idx], mode)
             action = _next_action(mode)
 
@@ -175,12 +190,12 @@ def run(name: str) -> None:
                 new_mode = "dub" if mode == "sub" else "sub"
                 print(f"fetching {new_mode} episodes...")
                 try:
-                    new_episodes = _episodes(chosen, new_mode)
+                    new_episodes = _ordered_episodes(_episodes(chosen, new_mode), chosen)
                 except Exception as exc:
                     print(f"could not fetch {new_mode} episodes: {exc}")
                     continue
                 if not new_episodes:
-                    print(f"no {new_mode} episodes found. shucks")
+                    print(f"no {new_mode} episodes found.")
                     continue
                 current_number = episodes[ep_idx].number
                 mode = new_mode

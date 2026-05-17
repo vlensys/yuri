@@ -187,15 +187,13 @@ def read_pages(page_urls: List[str], result: SearchResult,
                     break
 
                 try:
-                    print("\n  enter  next    n  skip 5    q  quit", end="  ", flush=True)
+                    print("\n  enter  next    q  quit", end="  ", flush=True)
                     key = input().strip().lower()
                 except (EOFError, KeyboardInterrupt):
                     break
 
                 if key == "q":
                     break
-                elif key == "n":
-                    page_num = min(page_num + 5, total)
                 else:
                     page_num += 1
         finally:
