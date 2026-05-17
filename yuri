@@ -39,7 +39,8 @@ def _do_novel_search(name: str) -> None:
 
 
 def _do_watch(name: str) -> None:
-    print("work in progress")
+    from yuri_cli.anime_watch import run
+    run(name)
 
 
 def main() -> None:

@@ -1,7 +1,7 @@
 import json
 import urllib.request
 import urllib.error
-from typing import Any
+from typing import Any, Optional
 
 _HEADERS = {
     "User-Agent": (
@@ -14,23 +14,23 @@ _HEADERS = {
 }
 
 
-def get_json(url: str) -> Any:
-    req = urllib.request.Request(url, headers=_HEADERS)
+def get_json(url: str, headers: Optional[dict] = None) -> Any:
+    req = urllib.request.Request(url, headers={**_HEADERS, **(headers or {})})
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
 
 
-def post_json(url: str, payload: dict) -> Any:
+def post_json(url: str, payload: dict, headers: Optional[dict] = None) -> Any:
     data = json.dumps(payload).encode()
     req  = urllib.request.Request(
         url, data=data,
-        headers={**_HEADERS, "Content-Type": "application/json"},
+        headers={**_HEADERS, **(headers or {}), "Content-Type": "application/json"},
     )
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
 
 
-def request(url: str) -> bytes:
-    req = urllib.request.Request(url, headers=_HEADERS)
+def request(url: str, headers: Optional[dict] = None) -> bytes:
+    req = urllib.request.Request(url, headers={**_HEADERS, **(headers or {})})
     with urllib.request.urlopen(req, timeout=15) as resp:
         return resp.read()
