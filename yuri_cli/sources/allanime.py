@@ -25,6 +25,23 @@ _YURI_PATTERN = re.compile(
     re.IGNORECASE,
 )
 _PROVIDERS = ("Default", "Yt-mp4", "S-mp4", "Luf-Mp4", "Fm-mp4")
+_SOURCE_PRIORITY = {
+    "Yt-mp4": 90,
+    "Default": 80,
+    "Luf-Mp4": 75,
+    "S-mp4": 70,
+    "Ss-Hls": 60,
+    "Sl-mp4": 55,
+    "Fm-mp4": 50,
+    "Mp4": 30,
+    "Ok": 20,
+    "Vid-mp4": 10,
+}
+_URL_PENALTY = {
+    "gogo-stream.com": -50,
+    "anihdplay.com": -40,
+    "ok.ru": -20,
+}
 _TOBEPARSED_KEY = hashlib.sha256(b"Xot36i3lK3:v1").hexdigest()
 _EPISODE_HASH = "d405d0edd690624b66baba3068e0edc3ac90f1597d898a1ec8db4e5c43c00fec"
 
@@ -363,4 +380,8 @@ def streams(show_id: str, episode: str, translation_type: str = "sub") -> List[S
 def _stream_sort_key(stream: Stream) -> tuple:
     digits = "".join(ch for ch in stream.quality if ch.isdigit())
     quality = int(digits) if digits else 0
-    return quality, stream.source != "Fm-mp4"
+    source_score = _SOURCE_PRIORITY.get(stream.source, 0)
+    for domain, penalty in _URL_PENALTY.items():
+        if domain in stream.url:
+            source_score += penalty
+    return source_score, quality
