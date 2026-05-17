@@ -129,7 +129,7 @@ def run(name: str) -> None:
     results = filter_yuri(results)
 
     if not results:
-        sys.exit("no yuri/gl anime results found.")
+        sys.exit("no results found.")
 
     labels = [f"[{r.source}]  {r.title}  [{', '.join(r.tags[:3])}]" for r in results]
     idx = pick(labels, "select anime")
@@ -148,7 +148,7 @@ def run(name: str) -> None:
         sys.exit(f"could not fetch episodes: {exc}")
 
     if not episodes:
-        sys.exit("no subbed episodes found.")
+        sys.exit("no subbed episodes found. that's weird...")
 
     ep_idx = _pick_episode(episodes)
     if ep_idx is None:
