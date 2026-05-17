@@ -4,16 +4,34 @@ import urllib.parse
 from typing import List
 
 from yuri_cli.http import get_json
+from yuri_cli.lock import filter_yuri, looks_yuri
 from yuri_cli.models import Chapter, Page, SearchResult
 
 _YURI_TAG = "423e2eae-a7a2-4a8b-ac03-a8351462d71d"
 _BASE      = "https://api.mangadex.org"
 
 
+def yuri_tag_ids() -> List[str]:
+    return [_YURI_TAG]
+
+
+def is_yuri_manga(manga_id: str) -> bool:
+    data = get_json(f"{_BASE}/manga/{manga_id}")
+    attr = data.get("data", {}).get("attributes", {})
+    tags = [t.get("attributes", {}).get("name", {}).get("en", "") for t in attr.get("tags", [])]
+    text = " ".join([
+        *tags,
+        *list((attr.get("title") or {}).values()),
+        *list((attr.get("description") or {}).values()),
+    ])
+    return looks_yuri(text)
+
+
 def search(query: str, limit: int = 20) -> List[SearchResult]:
+    included_tags = yuri_tag_ids()
     params = urllib.parse.urlencode([
         ("title",            query),
-        ("includedTags[]",   _YURI_TAG),
+        *[("includedTags[]", tag_id) for tag_id in included_tags],
         ("limit",            limit),
         ("contentRating[]",  "safe"),
         ("contentRating[]",  "suggestive"),
@@ -48,10 +66,13 @@ def search(query: str, limit: int = 20) -> List[SearchResult]:
             description = (attr.get("description") or {}).get("en", ""),
             cover_url   = cover_url,
         ))
-    return results
+    return filter_yuri(results)
 
 
 def chapters(manga_id: str, lang: str = "en") -> List[Chapter]:
+    if not is_yuri_manga(manga_id):
+        raise PermissionError("blocked: manga does not look like yuri.")
+
     collected = []
     offset    = 0
     limit     = 100

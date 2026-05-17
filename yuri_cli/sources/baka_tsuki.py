@@ -17,6 +17,21 @@ def _api(**params) -> dict:
     return get_json(f"{API}?{urllib.parse.urlencode(params)}")
 
 
+def _query_variants(query: str) -> List[str]:
+    variants = [query]
+    normalized = re.sub(r"\s+", " ", query).strip()
+    if normalized and normalized != query:
+        variants.append(normalized)
+    swapped = re.sub(r"\band\b", "to", normalized, flags=re.IGNORECASE)
+    if swapped and swapped not in variants:
+        variants.append(swapped)
+    compact = re.sub(r"\b(and|to)\b", " ", normalized, flags=re.IGNORECASE)
+    compact = re.sub(r"\s+", " ", compact).strip()
+    if compact and compact not in variants:
+        variants.append(compact)
+    return variants
+
+
 class _TextExtractor(HTMLParser):
     _BLOCK_TAGS = {"p", "h1", "h2", "h3", "h4", "br", "div"}
 
@@ -67,20 +82,27 @@ class _TextExtractor(HTMLParser):
 
 
 def search(query: str, limit: int = 20) -> List[SearchResult]:
-    data = _api(action="query", list="search", srsearch=query, srnamespace=0, srlimit=limit)
-    hits = data.get("query", {}).get("search", [])
     results = []
-    for hit in hits:
-        title = hit["title"]
-        if "/" in title:
-            continue
-        results.append(SearchResult(
-            source = "baka_tsuki",
-            id     = title,
-            title  = title,
-            kind   = "novel",
-            tags   = ["yuri"],
-        ))
+    seen: set[str] = set()
+    for variant in _query_variants(query):
+        data = _api(action="query", list="search", srsearch=variant, srnamespace=0, srlimit=limit)
+        hits = data.get("query", {}).get("search", [])
+        for hit in hits:
+            title = hit["title"]
+            if "/" in title or title in seen:
+                continue
+            seen.add(title)
+            results.append(SearchResult(
+                source = "baka_tsuki",
+                id     = title,
+                title  = title,
+                kind   = "novel",
+                tags   = ["yuri"],
+            ))
+            if len(results) >= limit:
+                return results
+        if results:
+            break
     return results
 
 

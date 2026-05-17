@@ -10,6 +10,7 @@ def _usage() -> None:
     print("  yuri manga search <name>    search manga")
     print("  yuri novel read <name>      read a novel")
     print("  yuri novel search <name>    search novels")
+    print("  yuri watch <name>           watch anime")
     sys.exit(1)
 
 
@@ -19,28 +20,26 @@ def _do_manga_read(name: str) -> None:
 
 
 def _do_manga_search(name: str) -> None:
+    from yuri_cli.lock import filter_kind
     from yuri_cli.sources import mangadex
-    results = mangadex.search(name)
+    results = filter_kind(mangadex.search(name), "manga")
     if not results:
-        print("no results found.")
+        print("no manga results found.")
         sys.exit(0)
     for r in results:
         print(f"  {r.title}  [{', '.join(r.tags[:4])}]")
 
 
 def _do_novel_read(name: str) -> None:
-    from yuri_cli.novel_read import run
-    run(name)
+    print("work in progress")
 
 
 def _do_novel_search(name: str) -> None:
-    from yuri_cli.sources import dynasty
-    results = dynasty.search(name)
-    if not results:
-        print("no results found.")
-        sys.exit(0)
-    for r in results:
-        print(f"  {r.title}")
+    print("work in progress")
+
+
+def _do_watch(name: str) -> None:
+    print("work in progress")
 
 
 def main() -> None:
@@ -77,18 +76,23 @@ def main() -> None:
             _usage()
 
     elif cmd == "novel":
-        if len(args) < 3:
-            print("usage: yuri novel read <name>")
-            sys.exit(1)
-        sub  = args[1].lower()
+        if len(args) < 2:
+            print("work in progress")
+            sys.exit(0)
+        sub = args[1].lower()
         name = " ".join(args[2:])
         if sub == "read":
             _do_novel_read(name)
         elif sub == "search":
             _do_novel_search(name)
         else:
-            print(f"unknown subcommand: {sub}")
-            _usage()
+            print("work in progress")
+
+    elif cmd == "watch":
+        if len(args) < 2:
+            print("usage: yuri watch <name>")
+            sys.exit(1)
+        _do_watch(" ".join(args[1:]))
 
     else:
         print(f"unknown command: {cmd}")

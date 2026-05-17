@@ -45,8 +45,6 @@ def _display_image(viewer: str, path: str) -> None:
 
 
 def _referer_for(url: str) -> str:
-    if "dynasty-scans.com" in url:
-        return "https://dynasty-scans.com/"
     return "https://mangadex.org/"
 
 

@@ -1,70 +1,34 @@
 import sys
 from typing import List
 
+from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
-from yuri_cli.reader import pick, read_pages
+from yuri_cli.reader import pick
 from yuri_cli.novel_reader import read_novel
-from yuri_cli.sources import baka_tsuki, dynasty
+from yuri_cli.sources import royalroad
 
 
 def run(name: str) -> None:
-    print(f"searching baka-tsuki for '{name}'...")
-    bt_results: List[SearchResult] = []
+    print(f"searching royalroad for '{name}'...")
     try:
-        bt_results = baka_tsuki.search(name)
-    except Exception as exc:
-        print(f"baka-tsuki unavailable: {exc}")
-
-    if bt_results:
-        labels = [r.title for r in bt_results]
-        idx    = pick(labels, "select novel")
-        if idx is not None:
-            chosen = bt_results[idx]
-            print(f"\n{chosen.title}  [baka-tsuki]")
-            print("fetching chapters...")
-            try:
-                chs = baka_tsuki.chapters(chosen.id)
-            except Exception as exc:
-                sys.exit(f"could not fetch chapters: {exc}")
-
-            if not chs:
-                print("not found on baka-tsuki, trying dynasty scans...")
-                bt_results = []
-            else:
-                ch_labels = [f"ch.{int(ch.number)}  {ch.title}" for ch in chs]
-                ch_idx    = pick(ch_labels, "select chapter")
-                if ch_idx is None:
-                    sys.exit("cancelled.")
-                chapter = chs[ch_idx]
-                print(f"\n{chapter.title}")
-                print("fetching text...")
-                try:
-                    segments = baka_tsuki.chapter_content(chapter.id)
-                except Exception as exc:
-                    sys.exit(f"could not fetch chapter: {exc}")
-                if not segments:
-                    sys.exit("chapter is empty.")
-                read_novel(segments, chosen, chapter)
-                return
-
-    print(f"searching dynasty scans for '{name}'...")
-    try:
-        results: List[SearchResult] = dynasty.search(name)
+        results: List[SearchResult] = royalroad.search(name)
     except Exception as exc:
         sys.exit(f"search failed: {exc}")
+    results = filter_kind(results, "novel")
 
     if not results:
         sys.exit("no results found.")
 
-    labels = [r.title for r in results]
+    labels = [f"{r.title}  [{', '.join(r.tags[:3])}]" for r in results]
     idx    = pick(labels, "select novel")
     if idx is None:
         sys.exit("cancelled.")
     chosen = results[idx]
-    print(f"\n{chosen.title}  [dynasty scans]")
+
+    print(f"\n{chosen.title}")
     print("fetching chapters...")
     try:
-        chs = dynasty.chapters(chosen.id)
+        chs: List[Chapter] = royalroad.chapters(chosen.id)
     except Exception as exc:
         sys.exit(f"could not fetch chapters: {exc}")
 
@@ -76,14 +40,15 @@ def run(name: str) -> None:
     if ch_idx is None:
         sys.exit("cancelled.")
     chapter = chs[ch_idx]
+
     print(f"\n{chapter.title}")
-    print("fetching pages...")
+    print("fetching text...")
     try:
-        page_urls = dynasty.chapter_pages(chapter.id)
+        segments = royalroad.chapter_content(chapter.id)
     except Exception as exc:
-        sys.exit(f"could not fetch pages: {exc}")
+        sys.exit(f"could not fetch chapter: {exc}")
 
-    if not page_urls:
-        sys.exit("no pages found.")
+    if not segments:
+        sys.exit("chapter is empty.")
 
-    read_pages(page_urls, chosen, chapter, kind="novel")
+    read_novel(segments, chosen, chapter)

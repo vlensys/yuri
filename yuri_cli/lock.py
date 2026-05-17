@@ -14,3 +14,7 @@ def looks_yuri(text: str) -> bool:
 
 def filter_yuri(results: List[SearchResult]) -> List[SearchResult]:
     return [r for r in results if any(looks_yuri(tag) for tag in r.tags)]
+
+
+def filter_kind(results: List[SearchResult], kind: str) -> List[SearchResult]:
+    return [r for r in results if r.kind == kind]

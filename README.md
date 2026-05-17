@@ -12,7 +12,7 @@
 
 ## sources (more coming as soon)
 ### light novel
-- dynasty/baka tsuki
+- baka-tsuki/jnovels
 ### manga
 - mangadex
 ### anime

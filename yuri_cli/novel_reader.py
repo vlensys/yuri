@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import os
+import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import textwrap
 import urllib.request
+import xml.etree.ElementTree as ET
+import zipfile
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import List, Tuple
 
@@ -85,25 +90,21 @@ class _Pager:
     def run(self) -> None:
         pos   = 0
         total = len(self._lines)
-
         while pos < total:
             cols, rows = shutil.get_terminal_size((80, 40))
             page_size  = rows - 4
             _clear()
             _hud(self._title, self._ch_title, pos, total)
             print("\n".join(self._lines[pos: pos + page_size]))
-
             if pos + page_size >= total:
                 print("\n  end of chapter")
                 input("  enter to continue  ")
                 return
-
             try:
                 print("\n  enter  next    b  back    q  quit", end="  ", flush=True)
                 key = input().strip().lower()
             except (EOFError, KeyboardInterrupt):
                 return
-
             if key == "q":
                 sys.exit(0)
             elif key == "b":
@@ -124,9 +125,8 @@ def read_novel(segments: List[Tuple[str, str]],
         def flush_text() -> None:
             if not text_buf:
                 return
-            lines  = _wrap("\n\n".join(text_buf), cols)
-            pager  = _Pager(lines, result.title, chapter.title)
-            pager.run()
+            lines = _wrap("\n\n".join(text_buf), cols)
+            _Pager(lines, result.title, chapter.title).run()
             text_buf.clear()
 
         for kind, value in segments:
@@ -148,3 +148,161 @@ def read_novel(segments: List[Tuple[str, str]],
                     return
 
         flush_text()
+
+
+class _HtmlStripper(HTMLParser):
+    _BLOCK = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "br", "div", "li", "tr", "td"}
+    _SKIP  = {"script", "style", "head"}
+
+    def __init__(self) -> None:
+        super().__init__()
+        self._buf  = ""
+        self._skip = 0
+
+    def _flush(self, out: List[str]) -> None:
+        text = re.sub(r"\n{3,}", "\n\n", self._buf).strip()
+        if text:
+            out.append(text)
+        self._buf = ""
+
+    def strip(self, html_text: str) -> str:
+        out: List[str] = []
+        self._buf  = ""
+        self._skip = 0
+        self.feed(html_text)
+        out_inner: List[str] = []
+        self._flush(out_inner)
+        return "\n\n".join(out_inner)
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        if tag in self._SKIP:
+            self._skip += 1
+            return
+        if self._skip:
+            return
+        if tag in self._BLOCK:
+            self._buf += "\n"
+
+    def handle_endtag(self, tag: str) -> None:
+        if self._skip:
+            if tag in self._SKIP:
+                self._skip -= 1
+            return
+        if tag in self._BLOCK:
+            self._buf += "\n"
+
+    def handle_data(self, data: str) -> None:
+        if not self._skip:
+            self._buf += data
+
+
+def _epub_item_path(opf_dir: str, href: str) -> str:
+    if opf_dir in (".", ""):
+        return href
+    return f"{opf_dir}/{href}"
+
+
+def _epub_segments(path: Path) -> List[Tuple[str, str]]:
+    try:
+        with zipfile.ZipFile(path) as zf:
+            container = ET.fromstring(zf.read("META-INF/container.xml"))
+            ns_c      = {"c": "urn:oasis:names:tc:opendocument:xmlns:container"}
+            opf_path  = container.find(".//c:rootfile", ns_c).get("full-path")
+            opf_dir   = str(Path(opf_path).parent)
+            opf       = ET.fromstring(zf.read(opf_path))
+            ns_o      = {"opf": "http://www.idpf.org/2007/opf"}
+
+            manifest = {
+                item.get("id"): item.get("href", "")
+                for item in opf.findall(".//opf:manifest/opf:item", ns_o)
+            }
+            spine = [
+                item.get("idref")
+                for item in opf.findall(".//opf:spine/opf:itemref", ns_o)
+            ]
+
+            stripper  = _HtmlStripper()
+            segments: List[Tuple[str, str]] = []
+
+            for idref in spine:
+                href = manifest.get(idref or "", "")
+                if not href:
+                    continue
+                full = _epub_item_path(opf_dir, href)
+                try:
+                    raw = zf.read(full).decode("utf-8", errors="replace")
+                except KeyError:
+                    try:
+                        raw = zf.read(href).decode("utf-8", errors="replace")
+                    except KeyError:
+                        continue
+                text = stripper.strip(raw)
+                if text:
+                    segments.append(("text", text))
+
+            return segments
+    except Exception as exc:
+        return [("text", f"could not read epub: {exc}")]
+
+
+def _pdf_segments(path: Path) -> List[Tuple[str, str]]:
+    if shutil.which("pdftotext"):
+        try:
+            result = subprocess.run(
+                ["pdftotext", "-layout", str(path), "-"],
+                capture_output=True, text=True, timeout=60,
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                return [("text", result.stdout.strip())]
+        except Exception:
+            pass
+    return [("_pdf_images", str(path))]
+
+
+def _read_pdf_as_images(path: Path, result: SearchResult, chapter: Chapter) -> None:
+    if not shutil.which("pdftoppm"):
+        print("install poppler to read pdfs in the terminal.")
+        return
+    viewer = _find_viewer()
+    with tempfile.TemporaryDirectory(prefix="yuri_pdf_") as tmpdir:
+        subprocess.run(
+            ["pdftoppm", "-r", "150", str(path), f"{tmpdir}/page"],
+            capture_output=True,
+        )
+        pages = sorted(Path(tmpdir).glob("page-*.ppm"))
+        if not pages:
+            pages = sorted(Path(tmpdir).glob("page*.ppm"))
+        total    = len(pages)
+        page_num = 1
+        while page_num <= total:
+            _clear()
+            _hud(result.title, chapter.title, page_num, total)
+            _display_image(viewer, str(pages[page_num - 1]))
+            if page_num >= total:
+                break
+            try:
+                print("\n  enter  next    q  quit", end="  ", flush=True)
+                key = input().strip().lower()
+            except (EOFError, KeyboardInterrupt):
+                break
+            if key == "q":
+                break
+            page_num += 1
+
+
+def read_file(path: Path, result: SearchResult, chapter: Chapter) -> None:
+    suffix = path.suffix.lower()
+    if suffix == ".epub":
+        segments = _epub_segments(path)
+    elif suffix == ".pdf":
+        segments = _pdf_segments(path)
+        if segments and segments[0][0] == "_pdf_images":
+            _read_pdf_as_images(path, result, chapter)
+            return
+    else:
+        print(f"unsupported format: {suffix}")
+        return
+    if not segments:
+        print("file appears to be empty.")
+        return
+    read_novel(segments, result, chapter)

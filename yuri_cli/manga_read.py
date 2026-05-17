@@ -1,6 +1,7 @@
 import sys
 from typing import List
 
+from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
 from yuri_cli.reader import pick, read_pages
 from yuri_cli.sources import mangadex
@@ -12,9 +13,10 @@ def run(name: str) -> None:
         results: List[SearchResult] = mangadex.search(name)
     except Exception as exc:
         sys.exit(f"search failed: {exc}")
+    results = filter_kind(results, "manga")
 
     if not results:
-        sys.exit("no results found.")
+        sys.exit("no manga results found.")
 
     labels = [f"{r.title}  [{', '.join(r.tags[:3])}]" for r in results]
     idx = pick(labels, "select manga")
