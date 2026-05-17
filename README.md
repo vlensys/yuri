@@ -17,7 +17,7 @@ btw any terminal that supports images work, i js use [foot](https://codeberg.org
 ## usage
 
 ```
-yuri read <name>              search all sources and read
+yuri read <name>              read manga/ln
 yuri watch <name>             watch anime 
 ```
 
@@ -25,7 +25,7 @@ yuri watch <name>             watch anime
 
 ```sh
 yuri read "Adachi and Shimamura"
-yuri watch "There's no freaking way i'll be your lover, unless..."
+yuri watch "i'm in love with the villainess"
 ```
 
 
