@@ -6,6 +6,8 @@ build/
 .eggs/
 *.egg
 
+AGENTS.md
+
 .env
 .venv/
 venv/
