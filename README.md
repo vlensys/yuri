@@ -25,7 +25,7 @@ yuri watch <name>             watch anime
 
 ```sh
 yuri read "Adachi and Shimamura"
-yuri watch "Adachi and Shimamura"
+yuri watch "There's no freaking way i'll be your lover, unless..."
 ```
 
 
