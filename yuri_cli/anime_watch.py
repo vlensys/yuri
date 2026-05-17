@@ -76,11 +76,4 @@ def run(name: str) -> None:
     if not streams:
         sys.exit("no playable streams found.")
 
-    stream_labels = [
-        f"{stream.quality}  {stream.source}"
-        for stream in streams
-    ]
-    stream_idx = pick(stream_labels, "select quality")
-    stream = streams[0] if stream_idx is None else streams[stream_idx]
-
-    _play(stream, chosen.title, episode.id)
+    _play(streams[0], chosen.title, episode.id)
