@@ -3,15 +3,14 @@ from typing import List
 
 from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
-from yuri_cli.reader import pick
-from yuri_cli.novel_reader import read_novel
-from yuri_cli.sources import royalroad
+from yuri_cli.reader import pick, read_pages
+from yuri_cli.sources import dynasty
 
 
 def run(name: str) -> None:
-    print(f"searching royalroad for '{name}'...")
+    print(f"searching dynasty for '{name}'...")
     try:
-        results: List[SearchResult] = royalroad.search(name)
+        results: List[SearchResult] = dynasty.search(name)
     except Exception as exc:
         sys.exit(f"search failed: {exc}")
     results = filter_kind(results, "novel")
@@ -19,16 +18,16 @@ def run(name: str) -> None:
     if not results:
         sys.exit("no results found.")
 
-    labels = [f"{r.title}  [{', '.join(r.tags[:3])}]" for r in results]
+    labels = [f"{r.title} [Dynasty]  [{', '.join(r.tags[:3])}]" for r in results]
     idx    = pick(labels, "select novel")
     if idx is None:
         sys.exit("cancelled.")
     chosen = results[idx]
 
-    print(f"\n{chosen.title}")
+    print(f"\n{chosen.title} [Dynasty]")
     print("fetching chapters...")
     try:
-        chs: List[Chapter] = royalroad.chapters(chosen.id)
+        chs: List[Chapter] = dynasty.chapters(chosen.id)
     except Exception as exc:
         sys.exit(f"could not fetch chapters: {exc}")
 
@@ -42,13 +41,13 @@ def run(name: str) -> None:
     chapter = chs[ch_idx]
 
     print(f"\n{chapter.title}")
-    print("fetching text...")
+    print("fetching pages...")
     try:
-        segments = royalroad.chapter_content(chapter.id)
+        page_urls = dynasty.chapter_pages(chapter.id)
     except Exception as exc:
         sys.exit(f"could not fetch chapter: {exc}")
 
-    if not segments:
-        sys.exit("chapter is empty.")
+    if not page_urls:
+        sys.exit("no pages found.")
 
-    read_novel(segments, chosen, chapter)
+    read_pages(page_urls, chosen, chapter, kind="novel")

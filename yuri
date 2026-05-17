@@ -21,21 +21,29 @@ def _do_manga_read(name: str) -> None:
 
 def _do_manga_search(name: str) -> None:
     from yuri_cli.lock import filter_kind
-    from yuri_cli.sources import mangadex
-    results = filter_kind(mangadex.search(name), "manga")
+    from yuri_cli.manga_read import _search_all, _source_label
+    results = filter_kind(_search_all(name), "manga")
     if not results:
         print("no manga results found.")
         sys.exit(0)
     for r in results:
-        print(f"  {r.title}  [{', '.join(r.tags[:4])}]")
+        print(f"  {r.title} [{_source_label(r.source)}]  [{', '.join(r.tags[:4])}]")
 
 
 def _do_novel_read(name: str) -> None:
-    print("work in progress")
+    from yuri_cli.novel_read import run
+    run(name)
 
 
 def _do_novel_search(name: str) -> None:
-    print("work in progress")
+    from yuri_cli.lock import filter_kind
+    from yuri_cli.sources import dynasty
+    results = filter_kind(dynasty.search(name), "novel")
+    if not results:
+        print("no novel results found.")
+        sys.exit(0)
+    for r in results:
+        print(f"  {r.title} [Dynasty]  [{', '.join(r.tags[:4])}]")
 
 
 def _do_watch(name: str) -> None:
