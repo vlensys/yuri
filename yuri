@@ -71,33 +71,6 @@ def main() -> None:
             sys.exit(1)
         _do_manga_search(" ".join(args[1:]))
 
-    elif cmd == "manga":
-        if len(args) < 3:
-            print("usage: yuri manga read <name>")
-            sys.exit(1)
-        sub  = args[1].lower()
-        name = " ".join(args[2:])
-        if sub == "read":
-            _do_manga_read(name)
-        elif sub == "search":
-            _do_manga_search(name)
-        else:
-            print(f"unknown subcommand: {sub}")
-            _usage()
-
-    elif cmd == "novel":
-        if len(args) < 2:
-            print("work in progress")
-            sys.exit(0)
-        sub = args[1].lower()
-        name = " ".join(args[2:])
-        if sub == "read":
-            _do_novel_read(name)
-        elif sub == "search":
-            _do_novel_search(name)
-        else:
-            print("work in progress")
-
     elif cmd == "watch":
         if len(args) < 2:
             print("usage: yuri watch <name>")
