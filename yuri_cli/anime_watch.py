@@ -11,6 +11,9 @@ from yuri_cli.reader import pick
 from yuri_cli.sources import allanime, animenexus
 
 
+_WATCH_SOURCES = (("allanime", allanime),)
+
+
 def _player() -> str:
     player = shutil.which("mpv")
     if not player:
@@ -59,7 +62,7 @@ def _play(stream, title: str, episode: str) -> Optional[subprocess.Popen]:
 
 def _search_all(name: str) -> List[SearchResult]:
     results: List[SearchResult] = []
-    for source_name, source in (("allanime", allanime), ("animenexus", animenexus)):
+    for source_name, source in _WATCH_SOURCES:
         try:
             results.extend(source.search(name))
         except Exception as exc:

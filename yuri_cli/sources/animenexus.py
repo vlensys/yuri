@@ -13,7 +13,6 @@ _HEADERS = {
 }
 
 _SEARCH_INCLUDES = ["poster", "genres"]
-_EPISODE_INCLUDES = ["videos"]
 
 
 @dataclass
@@ -67,11 +66,13 @@ def search(query: str) -> List[SearchResult]:
 
 def episodes(show_id: str, mode: str) -> List[Chapter]:
     params = {
-        "includes[]": _EPISODE_INCLUDES,
-        "lang": mode,
+        "id": show_id,
+        "page": 1,
+        "perPage": 100,
+        "order": "asc",
     }
     data = get_json(
-        _build_url(f"/api/anime/shows/{show_id}/episodes", params),
+        _build_url("/api/anime/details/episodes", params),
         headers=_HEADERS,
     )
     items = data.get("data") or data.get("episodes") or []
