@@ -8,10 +8,10 @@ from yuri_cli.lock import filter_kind, filter_yuri
 from yuri_cli.models import Chapter, SearchResult
 from yuri_cli.progress import get_last, set_last
 from yuri_cli.reader import pick
-from yuri_cli.sources import allanime, animenexus
+from yuri_cli.sources import allanime, yugenanime
 
 
-_WATCH_SOURCES = (("allanime", allanime),)
+_WATCH_SOURCES = (("allanime", allanime), ("yugenanime", yugenanime))
 
 
 def _player() -> str:
@@ -73,13 +73,13 @@ def _search_all(name: str) -> List[SearchResult]:
 def _episodes(chosen: SearchResult, mode: str) -> List[Chapter]:
     if chosen.source == "allanime":
         return allanime.episodes(chosen.id, mode)
-    return animenexus.episodes(chosen.id, mode)
+    return yugenanime.episodes(chosen.id, mode)
 
 
 def _streams(chosen: SearchResult, episode: Chapter, mode: str):
     if chosen.source == "allanime":
         return allanime.streams(chosen.id, episode.id, mode)
-    return animenexus.streams(chosen.id, episode.id, mode)
+    return yugenanime.streams(chosen.id, episode.id, mode)
 
 
 def _episode_choices(episodes: List[Chapter], chosen: SearchResult) -> tuple[List[str], List[int]]:
@@ -150,7 +150,7 @@ def run(name: str) -> None:
     results = filter_yuri(results)
 
     if not results:
-        sys.exit("no yuri/gl anime results found.")
+        sys.exit("no results found.")
 
     labels = [f"[{r.source}]  {r.title}  [{', '.join(r.tags[:3])}]" for r in results]
     idx = pick(labels, "select anime")

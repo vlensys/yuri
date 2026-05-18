@@ -8,7 +8,7 @@ from yuri_cli.sources import dynasty
 
 
 def run(name: str) -> None:
-    print(f"searching dynasty for '{name}'...")
+    print(f"searching for '{name}'...")
     try:
         results: List[SearchResult] = dynasty.search(name)
     except Exception as exc:
