@@ -1,5 +1,5 @@
 import sys
-from typing import List
+from typing import List, Optional
 
 from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
@@ -46,15 +46,13 @@ def _chapter_pages(chapter: Chapter) -> List[str]:
     return mangadex.chapter_pages(chapter.id)
 
 
-def _ordered_chapters(chapters: List[Chapter], chosen: SearchResult) -> List[Chapter]:
-    last_id = get_last(chosen.source, chosen.id)
+def _chapter_choices(chapters: List[Chapter], last_id: Optional[str]) -> List[Chapter]:
     if not last_id:
         return chapters
     last = next((ch for ch in chapters if ch.id == last_id), None)
     if last is None:
         return chapters
-    rest = [ch for ch in chapters if ch.id != last_id]
-    return [last] + rest
+    return [last] + chapters
 
 
 def run(name: str) -> None:
@@ -89,9 +87,14 @@ def run(name: str) -> None:
     if not raw_chs:
         sys.exit("no english chapters found.")
 
-    chs = _ordered_chapters(raw_chs, chosen)
+    last_id = get_last(chosen.source, chosen.id)
+    chs = _chapter_choices(raw_chs, last_id)
 
-    ch_labels = [f"ch.{ch.number:g}  {ch.title}" for ch in chs]
+    ch_labels = [
+        f"{'last viewed  ' if idx == 0 and ch.id == last_id else ''}"
+        f"ch.{ch.number:g}  {ch.title}"
+        for idx, ch in enumerate(chs)
+    ]
     ch_idx = pick(ch_labels, "select chapter")
     if ch_idx is None:
         sys.exit("cancelled.")

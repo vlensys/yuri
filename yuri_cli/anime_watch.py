@@ -79,20 +79,26 @@ def _streams(chosen: SearchResult, episode: Chapter, mode: str):
     return animenexus.streams(chosen.id, episode.id, mode)
 
 
-def _ordered_episodes(episodes: List[Chapter], chosen: SearchResult) -> List[Chapter]:
+def _episode_choices(episodes: List[Chapter], chosen: SearchResult) -> tuple[List[str], List[int]]:
     last_id = get_last(chosen.source, chosen.id)
-    if not last_id:
-        return episodes
-    last = next((ep for ep in episodes if ep.id == last_id), None)
-    if last is None:
-        return episodes
-    rest = [ep for ep in episodes if ep.id != last_id]
-    return [last] + rest
+    labels: List[str] = []
+    indexes: List[int] = []
+    if last_id:
+        last_index = next((idx for idx, ep in enumerate(episodes) if ep.id == last_id), None)
+        if last_index is not None:
+            labels.append(f"last viewed  {episodes[last_index].title}")
+            indexes.append(last_index)
+    labels.extend(ep.title for ep in episodes)
+    indexes.extend(range(len(episodes)))
+    return labels, indexes
 
 
-def _pick_episode(episodes: List[Chapter]) -> Optional[int]:
-    ep_labels = [ep.title for ep in episodes]
-    return pick(ep_labels, "select episode")
+def _pick_episode(episodes: List[Chapter], chosen: SearchResult) -> Optional[int]:
+    ep_labels, indexes = _episode_choices(episodes, chosen)
+    picked = pick(ep_labels, "select episode")
+    if picked is None:
+        return None
+    return indexes[picked]
 
 
 def _play_episode(
@@ -162,9 +168,9 @@ def run(name: str) -> None:
     if not raw_episodes:
         sys.exit("no subbed episodes found.")
 
-    episodes = _ordered_episodes(raw_episodes, chosen)
+    episodes = raw_episodes
 
-    ep_idx = _pick_episode(episodes)
+    ep_idx = _pick_episode(episodes, chosen)
     if ep_idx is None:
         sys.exit("cancelled.")
 
@@ -183,14 +189,14 @@ def run(name: str) -> None:
             elif action == "r":
                 pass
             elif action == "e":
-                picked = _pick_episode(episodes)
+                picked = _pick_episode(episodes, chosen)
                 if picked is not None:
                     ep_idx = picked
             elif action == "d":
                 new_mode = "dub" if mode == "sub" else "sub"
                 print(f"fetching {new_mode} episodes...")
                 try:
-                    new_episodes = _ordered_episodes(_episodes(chosen, new_mode), chosen)
+                    new_episodes = _episodes(chosen, new_mode)
                 except Exception as exc:
                     print(f"could not fetch {new_mode} episodes: {exc}")
                     continue
