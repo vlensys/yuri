@@ -8,10 +8,11 @@ from yuri_cli.lock import filter_kind, filter_yuri
 from yuri_cli.models import Chapter, SearchResult
 from yuri_cli.progress import get_last, set_last
 from yuri_cli.reader import pick
-from yuri_cli.sources import allanime, yugenanime
+from yuri_cli.sources import allanime, anixplay
 
 
-_WATCH_SOURCES = (("allanime", allanime), ("yugenanime", yugenanime))
+_WATCH_SOURCES = (("allanime", allanime), ("anixplay", anixplay))
+_SOURCE_BY_NAME = dict(_WATCH_SOURCES)
 
 
 def _player() -> str:
@@ -71,15 +72,11 @@ def _search_all(name: str) -> List[SearchResult]:
 
 
 def _episodes(chosen: SearchResult, mode: str) -> List[Chapter]:
-    if chosen.source == "allanime":
-        return allanime.episodes(chosen.id, mode)
-    return yugenanime.episodes(chosen.id, mode)
+    return _SOURCE_BY_NAME[chosen.source].episodes(chosen.id, mode)
 
 
 def _streams(chosen: SearchResult, episode: Chapter, mode: str):
-    if chosen.source == "allanime":
-        return allanime.streams(chosen.id, episode.id, mode)
-    return yugenanime.streams(chosen.id, episode.id, mode)
+    return _SOURCE_BY_NAME[chosen.source].streams(chosen.id, episode.id, mode)
 
 
 def _episode_choices(episodes: List[Chapter], chosen: SearchResult) -> tuple[List[str], List[int]]:

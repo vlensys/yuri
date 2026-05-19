@@ -37,4 +37,4 @@ yuri watch "i'm in love with the villainess"
 |---|---|
 | manga | [MangaDex](https://mangadex.org/), [Dynasty Scans](https://dynasty-scans.com/) |
 | light novel | [Dynasty Reader](https://dynasty-scans.com/) |
-| anime | [AllAnime](https://allanime.to/), [Anime.Nexus](https://anime.nexus/)|
+| anime | [AllAnime](https://allanime.to/), [Zen API / AnixPlay](https://anixplay.buzz/) |
