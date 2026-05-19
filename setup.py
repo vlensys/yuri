@@ -6,5 +6,5 @@ setup(
     packages=find_packages(),
     python_requires=">=3.9",
     scripts=["yuri"],
-    description="Terminal manga/anime reader — yuri genre only.",
+    description="yuri straight in your terminal!"
 )
