@@ -113,7 +113,7 @@ class PageBuffer:
                 self._errors[index] = exc
 
 
-def _pick_fzf(items: List[str], prompt: str) -> Optional[int]:
+def _pick_fzf(items: List[str], prompt: str) -> tuple[bool, Optional[int]]:
     import subprocess
     input_text = "\n".join(f"{i}\t{label}" for i, label in enumerate(items))
     try:
@@ -122,20 +122,25 @@ def _pick_fzf(items: List[str], prompt: str) -> Optional[int]:
             input=input_text, capture_output=True, text=True,
         )
         if result.returncode != 0:
-            return None
-        return int(result.stdout.strip().split("\t")[0])
+            return True, None
+        return True, int(result.stdout.strip().split("\t")[0])
     except FileNotFoundError:
-        return None
+        return False, None
 
 
 def pick(items: List[str], prompt: str) -> Optional[int]:
-    idx = _pick_fzf(items, prompt)
+    used_fzf, idx = _pick_fzf(items, prompt)
     if idx is not None:
         return idx
+    if used_fzf:
+        return None
     print(f"\n{prompt}:")
     for i, label in enumerate(items):
         print(f"  [{i + 1}] {label}")
-    raw = input("select (0 to cancel): ").strip()
+    try:
+        raw = input("select (0 to cancel): ").strip()
+    except (EOFError, KeyboardInterrupt):
+        return None
     try:
         n = int(raw)
         return None if n == 0 else n - 1
