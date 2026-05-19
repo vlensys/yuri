@@ -6,10 +6,8 @@ import sys
 def _usage() -> None:
     print("yuri straight in your terminal!")
     print("usage:")
-    print("  yuri read <name>            read manga")
-    print("  yuri manga read <name>      read manga")
+    print("  yuri read <name>            read manga or light novel")
     print("  yuri manga search <name>    search manga")
-    print("  yuri novel read <name>      read a novel")
     print("  yuri novel search <name>    search novels")
     print("  yuri watch <name>           watch anime")
     sys.exit(1)

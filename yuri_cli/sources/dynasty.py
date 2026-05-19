@@ -119,10 +119,17 @@ class _ChapterParser(HTMLParser):
         self._cur_href = ""
         self._cur_title = ""
         self._index = 0
+        self._cur_volume = ""
+        self._in_dt = False
+        self._dt_buf = ""
 
     def handle_starttag(self, tag: str, attrs) -> None:
         a = dict(attrs)
-        if tag == "a" and "name" in a.get("class", ""):
+        if tag == "dt":
+            self._in_dt = True
+            self._dt_buf = ""
+            return
+        if tag == "a" and "name" in a.get("class", "") and not self._in_dt:
             href = a.get("href", "")
             if href.startswith("/chapters/"):
                 self._cur_href = href
@@ -130,6 +137,12 @@ class _ChapterParser(HTMLParser):
                 self._in_name = True
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "dt":
+            vol = unescape(self._dt_buf).strip()
+            if vol:
+                self._cur_volume = vol
+            self._in_dt = False
+            return
         if self._in_name and tag == "a":
             title = unescape(self._cur_title).strip()
             if self._cur_href and title:
@@ -139,12 +152,15 @@ class _ChapterParser(HTMLParser):
                     title=title,
                     number=float(self._index),
                     source="dynasty",
+                    volume=self._cur_volume,
                 ))
             self._in_name = False
 
     def handle_data(self, data: str) -> None:
         if self._in_name:
             self._cur_title += data
+        elif self._in_dt:
+            self._dt_buf += data
 
 
 def search(query: str, limit: int = 20) -> List[SearchResult]:
@@ -152,12 +168,25 @@ def search(query: str, limit: int = 20) -> List[SearchResult]:
     html = _fetch(f"/search?{params}")
     parser = _SearchParser()
     parser.feed(html)
-    seen: set[str] = set()
+    seen_ids: set[str] = set()
+    seen_novel_series: set[str] = set()
     results: List[SearchResult] = []
     for result in parser.results:
-        if result.id in seen:
+        if result.id in seen_ids:
             continue
-        seen.add(result.id)
+        if result.kind == "novel" and result.id.startswith("/chapters/"):
+            key = _novel_series_key(result.title)
+            if key in seen_novel_series:
+                continue
+            seen_novel_series.add(key)
+            result = SearchResult(
+                source=result.source,
+                id=result.id,
+                title=key,
+                kind=result.kind,
+                tags=result.tags,
+            )
+        seen_ids.add(result.id)
         results.append(result)
         if len(results) >= limit:
             break
@@ -167,6 +196,9 @@ def search(query: str, limit: int = 20) -> List[SearchResult]:
 def chapters(path: str) -> List[Chapter]:
     if path.startswith("/chapters/"):
         html = _fetch(path)
+        series_path = _series_from_chapter(html)
+        if series_path:
+            return chapters(series_path)
         title = _chapter_title(html) or path.rsplit("/", 1)[-1].replace("_", " ")
         return [Chapter(id=_source_id(path), title=title, number=1.0, source="dynasty")]
     html = _fetch(path)
@@ -195,3 +227,12 @@ def _chapter_title(html: str) -> str:
         return ""
     text = re.sub(r"<[^>]+>", "", match.group(1))
     return unescape(text).strip()
+
+
+def _series_from_chapter(html: str) -> str:
+    match = re.search(r'<h3[^>]*id=["\']chapter-title["\'].*?<a\s+href="(/series/[^"]+)"', html, re.DOTALL)
+    return match.group(1) if match else ""
+
+
+def _novel_series_key(title: str) -> str:
+    return re.sub(r"\s+ch\d+.*$", "", title, flags=re.IGNORECASE).strip()

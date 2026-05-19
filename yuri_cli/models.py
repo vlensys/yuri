@@ -19,6 +19,7 @@ class Chapter:
     title: str
     number: float
     source: str
+    volume: str = ""
 
 
 @dataclass

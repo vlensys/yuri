@@ -1,7 +1,6 @@
 import sys
 from typing import List, Optional
 
-from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
 from yuri_cli.progress import get_last, set_last
 from yuri_cli.reader import pick, read_pages
@@ -46,6 +45,14 @@ def _chapter_pages(chapter: Chapter) -> List[str]:
     return mangadex.chapter_pages(chapter.id)
 
 
+def _unique_volumes(chapters: List[Chapter]) -> List[str]:
+    seen: List[str] = []
+    for ch in chapters:
+        if ch.volume and ch.volume not in seen:
+            seen.append(ch.volume)
+    return seen
+
+
 def _chapter_choices(chapters: List[Chapter], last_id: Optional[str]) -> List[Chapter]:
     if not last_id:
         return chapters
@@ -56,21 +63,21 @@ def _chapter_choices(chapters: List[Chapter], last_id: Optional[str]) -> List[Ch
 
 
 def run(name: str) -> None:
-    print(f"searching manga sources for '{name}'...")
+    print(f"searching for '{name}'...")
     try:
         results: List[SearchResult] = _search_all(name)
     except Exception as exc:
         sys.exit(f"search failed: {exc}")
-    results = filter_kind(results, "manga")
+    results = [r for r in results if r.kind in ("manga", "novel")]
 
     if not results:
-        sys.exit("no manga results found.")
+        sys.exit("no results found.")
 
     labels = [
-        f"{r.title} [{_source_label(r.source)}]  [{', '.join(r.tags[:3])}]"
+        f"{r.title} [{_source_label(r.source)}]  [{r.kind}]  [{', '.join(r.tags[:3])}]"
         for r in results
     ]
-    idx = pick(labels, "select manga")
+    idx = pick(labels, "select title")
     if idx is None:
         sys.exit("cancelled.")
     chosen = results[idx]
@@ -86,6 +93,14 @@ def run(name: str) -> None:
 
     if not raw_chs:
         sys.exit("no english chapters found.")
+
+    if chosen.kind == "novel":
+        volumes = _unique_volumes(raw_chs)
+        if len(volumes) > 1:
+            vol_idx = pick(volumes, "select volume")
+            if vol_idx is None:
+                sys.exit("cancelled.")
+            raw_chs = [ch for ch in raw_chs if ch.volume == volumes[vol_idx]]
 
     last_id = get_last(chosen.source, chosen.id)
     chs = _chapter_choices(raw_chs, last_id)
@@ -112,4 +127,4 @@ def run(name: str) -> None:
     if not page_urls:
         sys.exit("no pages found.")
 
-    read_pages(page_urls, chosen, chapter, kind="manga")
+    read_pages(page_urls, chosen, chapter, kind=chosen.kind)
