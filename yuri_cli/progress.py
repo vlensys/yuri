@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import json
 import os
 from pathlib import Path
-from typing import Optional
 
 _PROGRESS_FILE = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "yuri" / "progress.json"
 
@@ -24,7 +25,7 @@ def _key(source: str, show_id: str) -> str:
     return f"{source}:{show_id}"
 
 
-def get_last(source: str, show_id: str) -> Optional[str]:
+def get_last(source: str, show_id: str) -> str | None:
     return _load().get(_key(source, show_id))
 
 

@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import json
 import urllib.request
 import urllib.error
-from typing import Any, Optional
+from typing import Any
 
 _HEADERS = {
     "User-Agent": (
@@ -14,15 +16,15 @@ _HEADERS = {
 }
 
 
-def get_json(url: str, headers: Optional[dict] = None) -> Any:
+def get_json(url: str, headers: dict | None = None) -> Any:
     req = urllib.request.Request(url, headers={**_HEADERS, **(headers or {})})
     with urllib.request.urlopen(req, timeout=15) as resp:
         return json.loads(resp.read())
 
 
-def post_json(url: str, payload: dict, headers: Optional[dict] = None) -> Any:
+def post_json(url: str, payload: dict, headers: dict | None = None) -> Any:
     data = json.dumps(payload).encode()
-    req  = urllib.request.Request(
+    req = urllib.request.Request(
         url, data=data,
         headers={**_HEADERS, **(headers or {}), "Content-Type": "application/json"},
     )
@@ -30,7 +32,7 @@ def post_json(url: str, payload: dict, headers: Optional[dict] = None) -> Any:
         return json.loads(resp.read())
 
 
-def request(url: str, headers: Optional[dict] = None) -> bytes:
+def request(url: str, headers: dict | None = None) -> bytes:
     req = urllib.request.Request(url, headers={**_HEADERS, **(headers or {})})
     with urllib.request.urlopen(req, timeout=15) as resp:
         return resp.read()

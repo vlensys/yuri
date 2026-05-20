@@ -1,5 +1,4 @@
 import sys
-from typing import List
 
 from yuri_cli.lock import filter_kind
 from yuri_cli.models import Chapter, SearchResult
@@ -10,7 +9,7 @@ from yuri_cli.sources import dynasty
 def run(name: str) -> None:
     print(f"searching for '{name}'...")
     try:
-        results: List[SearchResult] = dynasty.search(name)
+        results: list[SearchResult] = dynasty.search(name)
     except Exception as exc:
         sys.exit(f"search failed: {exc}")
     results = filter_kind(results, "novel")
@@ -27,7 +26,7 @@ def run(name: str) -> None:
     print(f"\n{chosen.title} [Dynasty]")
     print("fetching chapters...")
     try:
-        chs: List[Chapter] = dynasty.chapters(chosen.id)
+        chs: list[Chapter] = dynasty.chapters(chosen.id)
     except Exception as exc:
         sys.exit(f"could not fetch chapters: {exc}")
 

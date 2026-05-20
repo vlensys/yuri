@@ -8,7 +8,6 @@ import threading
 import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from yuri_cli.models import Chapter, SearchResult
 
@@ -58,18 +57,18 @@ def _download_page(url: str, dest: Path) -> None:
 
 
 class PageBuffer:
-    def __init__(self, urls: List[str], tmpdir: Path,
+    def __init__(self, urls: list[str], tmpdir: Path,
                  ahead: int = PRELOAD_AHEAD, workers: int = _DL_WORKERS) -> None:
         self._urls    = urls
         self._tmpdir  = tmpdir
         self._ahead   = ahead
         self._pool    = ThreadPoolExecutor(max_workers=workers, thread_name_prefix="preload")
-        self._futures: Dict[int, Future] = {}
-        self._errors:  Dict[int, Exception] = {}
+        self._futures: dict[int, Future] = {}
+        self._errors:  dict[int, Exception] = {}
         self._lock     = threading.Lock()
         self._schedule_window(0)
 
-    def get(self, index: int) -> Optional[Path]:
+    def get(self, index: int) -> Path | None:
         self._schedule_window(index)
         with self._lock:
             fut = self._futures.get(index)
@@ -115,7 +114,7 @@ class PageBuffer:
                 self._errors[index] = exc
 
 
-def _pick_fzf(items: List[str], prompt: str) -> tuple[bool, Optional[int]]:
+def _pick_fzf(items: list[str], prompt: str) -> tuple[bool, int | None]:
     import subprocess
     input_text = "\n".join(f"{i}\t{label}" for i, label in enumerate(items))
     try:
@@ -130,7 +129,7 @@ def _pick_fzf(items: List[str], prompt: str) -> tuple[bool, Optional[int]]:
         return False, None
 
 
-def pick(items: List[str], prompt: str) -> Optional[int]:
+def pick(items: list[str], prompt: str) -> int | None:
     used_fzf, idx = _pick_fzf(items, prompt)
     if idx is not None:
         return idx
@@ -166,7 +165,7 @@ def _hud(kind: str, title: str, ch_title: str,
     print("─" * cols)
 
 
-def read_pages(page_urls: List[str], result: SearchResult,
+def read_pages(page_urls: list[str], result: SearchResult,
                chapter: Chapter, kind: str = "manga") -> None:
     total  = len(page_urls)
     viewer = _find_viewer()

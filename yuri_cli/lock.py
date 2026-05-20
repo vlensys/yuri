@@ -1,4 +1,3 @@
-from typing import List
 from yuri_cli.models import SearchResult
 
 YURI_TERMS = {
@@ -12,12 +11,12 @@ def looks_yuri(text: str) -> bool:
     return any(term in lowered for term in YURI_TERMS)
 
 
-def filter_yuri(results: List[SearchResult]) -> List[SearchResult]:
+def filter_yuri(results: list[SearchResult]) -> list[SearchResult]:
     return [
         r for r in results
         if looks_yuri(r.title) or any(looks_yuri(tag) for tag in r.tags)
     ]
 
 
-def filter_kind(results: List[SearchResult], kind: str) -> List[SearchResult]:
+def filter_kind(results: list[SearchResult], kind: str) -> list[SearchResult]:
     return [r for r in results if r.kind == kind]

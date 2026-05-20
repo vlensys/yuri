@@ -6,7 +6,6 @@ import urllib.parse
 import urllib.request
 from html import unescape
 from html.parser import HTMLParser
-from typing import List
 
 from yuri_cli.lock import looks_yuri
 from yuri_cli.models import Chapter, SearchResult
@@ -37,7 +36,7 @@ def _source_url(path: str) -> str:
     return path if path.startswith("http") else _BASE + path
 
 
-def _kind_from_tags(title: str, tags: List[str]) -> str:
+def _kind_from_tags(title: str, tags: list[str]) -> str:
     text = " ".join([title, *tags]).lower()
     if "light/web novel" in text or "lightweb novel" in text or "text" in text:
         return "novel"
@@ -47,13 +46,13 @@ def _kind_from_tags(title: str, tags: List[str]) -> str:
 class _SearchParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
-        self.results: List[SearchResult] = []
+        self.results: list[SearchResult] = []
         self._in_dd = False
         self._in_name = False
         self._in_tag = False
         self._cur_href = ""
         self._cur_title = ""
-        self._cur_tags: List[str] = []
+        self._cur_tags: list[str] = []
         self._tag_buf = ""
 
     def handle_starttag(self, tag: str, attrs) -> None:
@@ -114,7 +113,7 @@ class _SearchParser(HTMLParser):
 class _ChapterParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
-        self.chapters: List[Chapter] = []
+        self.chapters: list[Chapter] = []
         self._in_name = False
         self._cur_href = ""
         self._cur_title = ""
@@ -163,14 +162,14 @@ class _ChapterParser(HTMLParser):
             self._dt_buf += data
 
 
-def search(query: str, limit: int = 20) -> List[SearchResult]:
+def search(query: str, limit: int = 20) -> list[SearchResult]:
     params = urllib.parse.urlencode({"q": query})
     html = _fetch(f"/search?{params}")
     parser = _SearchParser()
     parser.feed(html)
     seen_ids: set[str] = set()
     seen_novel_series: set[str] = set()
-    results: List[SearchResult] = []
+    results: list[SearchResult] = []
     for result in parser.results:
         if result.id in seen_ids:
             continue
@@ -193,7 +192,7 @@ def search(query: str, limit: int = 20) -> List[SearchResult]:
     return results
 
 
-def chapters(path: str) -> List[Chapter]:
+def chapters(path: str) -> list[Chapter]:
     if path.startswith("/chapters/"):
         html = _fetch(path)
         series_path = _series_from_chapter(html)
@@ -207,13 +206,13 @@ def chapters(path: str) -> List[Chapter]:
     return parser.chapters
 
 
-def chapter_pages(path: str) -> List[str]:
+def chapter_pages(path: str) -> list[str]:
     html = _fetch(path)
     match = re.search(r"var\s+pages\s*=\s*(\[.*?\]);", html, re.DOTALL)
     if not match:
         return []
     pages = json.loads(match.group(1))
-    urls: List[str] = []
+    urls: list[str] = []
     for page in pages:
         image = page.get("image", "")
         if image:

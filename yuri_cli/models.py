@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-from typing import List
 
 
 @dataclass
@@ -8,7 +7,7 @@ class SearchResult:
     id: str
     title: str
     kind: str
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
     description: str = ""
     cover_url: str = ""
 

@@ -1,8 +1,9 @@
+from __future__ import annotations
+
 import shutil
 import subprocess
 import sys
 import time
-from typing import List, Optional
 
 from yuri_cli.lock import filter_kind, filter_yuri
 from yuri_cli.models import Chapter, SearchResult
@@ -22,7 +23,7 @@ def _player() -> str:
     return player
 
 
-def _stop_player(player: Optional[subprocess.Popen]) -> None:
+def _stop_player(player: subprocess.Popen | None) -> None:
     if player is None or player.poll() is not None:
         return
     player.terminate()
@@ -33,7 +34,7 @@ def _stop_player(player: Optional[subprocess.Popen]) -> None:
         player.wait()
 
 
-def _play(stream, title: str, episode: str) -> Optional[subprocess.Popen]:
+def _play(stream, title: str, episode: str) -> subprocess.Popen | None:
     command = [
         _player(),
         "--really-quiet",
@@ -61,8 +62,8 @@ def _play(stream, title: str, episode: str) -> Optional[subprocess.Popen]:
     return player
 
 
-def _search_all(name: str) -> List[SearchResult]:
-    results: List[SearchResult] = []
+def _search_all(name: str) -> list[SearchResult]:
+    results: list[SearchResult] = []
     for source_name, source in _WATCH_SOURCES:
         try:
             results.extend(source.search(name))
@@ -71,7 +72,7 @@ def _search_all(name: str) -> List[SearchResult]:
     return results
 
 
-def _episodes(chosen: SearchResult, mode: str) -> List[Chapter]:
+def _episodes(chosen: SearchResult, mode: str) -> list[Chapter]:
     return _SOURCE_BY_NAME[chosen.source].episodes(chosen.id, mode)
 
 
@@ -79,10 +80,10 @@ def _streams(chosen: SearchResult, episode: Chapter, mode: str):
     return _SOURCE_BY_NAME[chosen.source].streams(chosen.id, episode.id, mode)
 
 
-def _episode_choices(episodes: List[Chapter], chosen: SearchResult) -> tuple[List[str], List[int]]:
+def _episode_choices(episodes: list[Chapter], chosen: SearchResult) -> tuple[list[str], list[int]]:
     last_id = get_last(chosen.source, chosen.id)
-    labels: List[str] = []
-    indexes: List[int] = []
+    labels: list[str] = []
+    indexes: list[int] = []
     if last_id:
         last_index = next((idx for idx, ep in enumerate(episodes) if ep.id == last_id), None)
         if last_index is not None:
@@ -93,7 +94,7 @@ def _episode_choices(episodes: List[Chapter], chosen: SearchResult) -> tuple[Lis
     return labels, indexes
 
 
-def _pick_episode(episodes: List[Chapter], chosen: SearchResult) -> Optional[int]:
+def _pick_episode(episodes: list[Chapter], chosen: SearchResult) -> int | None:
     ep_labels, indexes = _episode_choices(episodes, chosen)
     picked = pick(ep_labels, "select episode")
     if picked is None:
@@ -105,7 +106,7 @@ def _play_episode(
     chosen: SearchResult,
     episode: Chapter,
     mode: str,
-) -> Optional[subprocess.Popen]:
+) -> subprocess.Popen | None:
     print(f"\n{chosen.title} - {episode.title} [{mode}]")
     print("loading stream...")
     try:
@@ -159,22 +160,20 @@ def run(name: str) -> None:
     mode = "sub"
     print(f"fetching {mode} episodes...")
     try:
-        raw_episodes: List[Chapter] = _episodes(chosen, mode)
+        episodes: list[Chapter] = _episodes(chosen, mode)
     except PermissionError as exc:
         sys.exit(str(exc))
     except Exception as exc:
         sys.exit(f"could not fetch episodes: {exc}")
 
-    if not raw_episodes:
+    if not episodes:
         sys.exit("no subbed episodes found.")
-
-    episodes = raw_episodes
 
     ep_idx = _pick_episode(episodes, chosen)
     if ep_idx is None:
         sys.exit("cancelled.")
 
-    player: Optional[subprocess.Popen] = None
+    player: subprocess.Popen | None = None
     try:
         while True:
             _stop_player(player)

@@ -11,7 +11,7 @@ import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, List, Optional
+from typing import Any
 
 from yuri_cli.http import get_json, post_json, request
 from yuri_cli.models import Chapter, SearchResult
@@ -80,7 +80,7 @@ def is_yuri_media(show: dict) -> bool:
     return bool(_YURI_PATTERN.search(_show_text(show)))
 
 
-def search(query: str, limit: int = 20) -> List[SearchResult]:
+def search(query: str, limit: int = 20) -> list[SearchResult]:
     gql = """
     query (
       $search: SearchInput
@@ -115,7 +115,7 @@ def search(query: str, limit: int = 20) -> List[SearchResult]:
         "translationType": "sub",
         "countryOrigin": "ALL",
     })
-    results: List[SearchResult] = []
+    results: list[SearchResult] = []
     for show in data.get("data", {}).get("shows", {}).get("edges", []) or []:
         if not is_yuri_media(show):
             continue
@@ -153,11 +153,11 @@ def show(show_id: str) -> dict:
     return found
 
 
-def episodes(show_id: str, translation_type: str = "sub") -> List[Chapter]:
+def episodes(show_id: str, translation_type: str = "sub") -> list[Chapter]:
     found = show(show_id)
     detail = found.get("availableEpisodesDetail") or {}
     values = detail.get(translation_type) or []
-    chapters: List[Chapter] = []
+    chapters: list[Chapter] = []
     for raw in values:
         label = str(raw)
         try:
@@ -204,11 +204,11 @@ def _provider_url(path: str) -> str:
     return f"https://{_BASE}{path}"
 
 
-def _variant_streams(master_url: str, referer: str) -> List[Stream]:
+def _variant_streams(master_url: str, referer: str) -> list[Stream]:
     text = request(master_url, headers={"Referer": referer}).decode(errors="replace")
     if "#EXTM3U" not in text:
         return [Stream(master_url, quality="hls", referer=referer)]
-    streams: List[Stream] = []
+    streams: list[Stream] = []
     base_url = master_url.rsplit("/", 1)[0] + "/"
     last_quality = "hls"
     for line in text.splitlines():
@@ -226,7 +226,7 @@ def _variant_streams(master_url: str, referer: str) -> List[Stream]:
     return streams or [Stream(master_url, quality="hls", referer=referer)]
 
 
-def _streams_from_provider(path: str, source: str) -> List[Stream]:
+def _streams_from_provider(path: str, source: str) -> list[Stream]:
     if path.startswith(("http://", "https://")) and "/clock" not in path:
         return [Stream(url=path, quality=source, source=source, referer=_REFERER)]
     provider_url = _provider_url(path)
@@ -240,7 +240,7 @@ def _streams_from_provider(path: str, source: str) -> List[Stream]:
                 subtitles = sub.get("src") or ""
                 break
     raw_items = data if isinstance(data, list) else data.get("links") or data.get("sources") or []
-    streams: List[Stream] = []
+    streams: list[Stream] = []
     for item in raw_items:
         if not isinstance(item, dict):
             continue
@@ -261,7 +261,7 @@ def _streams_from_provider(path: str, source: str) -> List[Stream]:
     return streams
 
 
-def _decode_tobeparsed(blob: str) -> List[dict]:
+def _decode_tobeparsed(blob: str) -> list[dict]:
     with tempfile.TemporaryDirectory(prefix="yuri_allanime_") as tmp:
         encrypted = Path(tmp) / "payload.bin"
         encrypted.write_bytes(base64.b64decode(blob))
@@ -301,7 +301,7 @@ def _decode_tobeparsed(blob: str) -> List[dict]:
     return []
 
 
-def _source_urls(show_id: str, episode: str, translation_type: str) -> List[dict]:
+def _source_urls(show_id: str, episode: str, translation_type: str) -> list[dict]:
     gql = """
     query (
       $showId: String!
@@ -351,10 +351,10 @@ def _source_urls(show_id: str, episode: str, translation_type: str) -> List[dict
     return [item for item in urls if isinstance(item, dict)]
 
 
-def streams(show_id: str, episode: str, translation_type: str = "sub") -> List[Stream]:
+def streams(show_id: str, episode: str, translation_type: str = "sub") -> list[Stream]:
     show(show_id)
-    collected: List[Stream] = []
-    provider_sources: List[tuple[str, str]] = []
+    collected: list[Stream] = []
+    provider_sources: list[tuple[str, str]] = []
     for source in _source_urls(show_id, episode, translation_type):
         source_name = source.get("sourceName") or ""
         source_url = _decode_source_path(source.get("sourceUrl") or "")

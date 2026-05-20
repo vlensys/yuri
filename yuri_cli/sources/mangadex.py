@@ -1,18 +1,13 @@
 from __future__ import annotations
 
 import urllib.parse
-from typing import List
 
 from yuri_cli.http import get_json
 from yuri_cli.lock import filter_yuri, looks_yuri
 from yuri_cli.models import Chapter, Page, SearchResult
 
 _YURI_TAG = "423e2eae-a7a2-4a8b-ac03-a8351462d71d"
-_BASE      = "https://api.mangadex.org"
-
-
-def yuri_tag_ids() -> List[str]:
-    return [_YURI_TAG]
+_BASE = "https://api.mangadex.org"
 
 
 def is_yuri_manga(manga_id: str) -> bool:
@@ -27,11 +22,10 @@ def is_yuri_manga(manga_id: str) -> bool:
     return looks_yuri(text)
 
 
-def search(query: str, limit: int = 20) -> List[SearchResult]:
-    included_tags = yuri_tag_ids()
+def search(query: str, limit: int = 20) -> list[SearchResult]:
     params = urllib.parse.urlencode([
         ("title",            query),
-        *[("includedTags[]", tag_id) for tag_id in included_tags],
+        ("includedTags[]", _YURI_TAG),
         ("limit",            limit),
         ("contentRating[]",  "safe"),
         ("contentRating[]",  "suggestive"),
@@ -69,7 +63,7 @@ def search(query: str, limit: int = 20) -> List[SearchResult]:
     return filter_yuri(results)
 
 
-def chapters(manga_id: str, lang: str = "en") -> List[Chapter]:
+def chapters(manga_id: str, lang: str = "en") -> list[Chapter]:
     if not is_yuri_manga(manga_id):
         raise PermissionError("blocked: manga does not look like yuri.")
 
@@ -117,7 +111,7 @@ def chapters(manga_id: str, lang: str = "en") -> List[Chapter]:
     return unique
 
 
-def chapter_pages(chapter_id: str) -> List[str]:
+def chapter_pages(chapter_id: str) -> list[str]:
     data      = get_json(f"{_BASE}/at-home/server/{chapter_id}")
     base_url  = data["baseUrl"]
     ch        = data["chapter"]

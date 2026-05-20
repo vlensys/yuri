@@ -1,5 +1,6 @@
+from __future__ import annotations
+
 import sys
-from typing import List, Optional
 
 from yuri_cli.models import Chapter, SearchResult
 from yuri_cli.progress import get_last, set_last
@@ -17,8 +18,8 @@ def _source_label(source: str) -> str:
     return _SOURCE_LABELS.get(source, source)
 
 
-def _search_all(name: str) -> List[SearchResult]:
-    results: List[SearchResult] = []
+def _search_all(name: str) -> list[SearchResult]:
+    results: list[SearchResult] = []
     errors: List[str] = []
     for source_name, search_fn in (
         ("mangadex", mangadex.search),
@@ -33,7 +34,7 @@ def _search_all(name: str) -> List[SearchResult]:
     return results
 
 
-def _chapters(result: SearchResult) -> List[Chapter]:
+def _chapters(result: SearchResult) -> list[Chapter]:
     if result.source == "dynasty":
         return dynasty.chapters(result.id)
     return mangadex.chapters(result.id)
@@ -45,15 +46,11 @@ def _chapter_pages(chapter: Chapter) -> List[str]:
     return mangadex.chapter_pages(chapter.id)
 
 
-def _unique_volumes(chapters: List[Chapter]) -> List[str]:
-    seen: List[str] = []
-    for ch in chapters:
-        if ch.volume and ch.volume not in seen:
-            seen.append(ch.volume)
-    return seen
+def _unique_volumes(chapters: list[Chapter]) -> list[str]:
+    return list(dict.fromkeys(ch.volume for ch in chapters if ch.volume))
 
 
-def _chapter_choices(chapters: List[Chapter], last_id: Optional[str]) -> List[Chapter]:
+def _chapter_choices(chapters: list[Chapter], last_id: str | None) -> list[Chapter]:
     if not last_id:
         return chapters
     last = next((ch for ch in chapters if ch.id == last_id), None)
@@ -65,7 +62,7 @@ def _chapter_choices(chapters: List[Chapter], last_id: Optional[str]) -> List[Ch
 def run(name: str) -> None:
     print(f"searching for '{name}'...")
     try:
-        results: List[SearchResult] = _search_all(name)
+        results: list[SearchResult] = _search_all(name)
     except Exception as exc:
         sys.exit(f"search failed: {exc}")
     results = [r for r in results if r.kind in ("manga", "novel")]
@@ -85,7 +82,7 @@ def run(name: str) -> None:
     print(f"\n{chosen.title} [{_source_label(chosen.source)}]")
     print("fetching chapters...")
     try:
-        raw_chs: List[Chapter] = _chapters(chosen)
+        raw_chs: list[Chapter] = _chapters(chosen)
     except PermissionError as exc:
         sys.exit(str(exc))
     except Exception as exc:

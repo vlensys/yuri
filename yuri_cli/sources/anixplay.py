@@ -1,6 +1,7 @@
+from __future__ import annotations
+
 import urllib.parse
 from dataclasses import dataclass
-from typing import List, Optional
 
 from yuri_cli.http import get_json
 from yuri_cli.models import Chapter, SearchResult
@@ -12,8 +13,8 @@ _REFERER = "https://anizen.tr/"
 @dataclass
 class Stream:
     url: str
-    referer: Optional[str] = None
-    subtitle_url: Optional[str] = None
+    referer: str | None = None
+    subtitle_url: str | None = None
     source: str = "anixplay"
 
 
@@ -30,7 +31,7 @@ def _info(show_id: str) -> dict:
     return (_unwrap_results(data).get("data") or {})
 
 
-def _tags_from_info(info: dict) -> List[str]:
+def _tags_from_info(info: dict) -> list[str]:
     anime_info = info.get("animeInfo") or {}
     tags = []
     for key in ("Genres", "Studios", "Producers"):
@@ -40,7 +41,7 @@ def _tags_from_info(info: dict) -> List[str]:
     return tags
 
 
-def _search_queries(query: str) -> List[str]:
+def _search_queries(query: str) -> list[str]:
     queries = [query]
     replacements = {
         "villainness": "villainess",
@@ -60,9 +61,9 @@ def _search_queries(query: str) -> List[str]:
     return list(dict.fromkeys(q for q in queries if q.strip()))
 
 
-def search(query: str) -> List[SearchResult]:
+def search(query: str) -> list[SearchResult]:
     seen = set()
-    results: List[SearchResult] = []
+    results: list[SearchResult] = []
     for search_query in _search_queries(query):
         data = get_json(_build_url("/api/search", {"keyword": search_query}))
         items = (_unwrap_results(data).get("data") or [])
@@ -97,10 +98,10 @@ def search(query: str) -> List[SearchResult]:
     return results
 
 
-def episodes(show_id: str, mode: str) -> List[Chapter]:
+def episodes(show_id: str, mode: str) -> list[Chapter]:
     info = _info(show_id)
     raw_episodes = ((info.get("episodes") or {}).get("episodes") or [])
-    chapters: List[Chapter] = []
+    chapters: list[Chapter] = []
     for ep in raw_episodes:
         if mode == "dub" and not ep.get("hasDub"):
             continue

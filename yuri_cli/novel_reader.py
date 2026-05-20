@@ -12,7 +12,6 @@ import xml.etree.ElementTree as ET
 import zipfile
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import List, Tuple
 
 from yuri_cli.models import SearchResult, Chapter
 
@@ -54,7 +53,7 @@ def _clear() -> None:
     os.system("clear")
 
 
-def _wrap(text: str, width: int, indent: int = 4) -> List[str]:
+def _wrap(text: str, width: int, indent: int = 4) -> list[str]:
     lines = []
     for para in text.split("\n\n"):
         para = para.strip()
@@ -82,7 +81,7 @@ def _hud(title: str, ch_title: str, line: int, total_lines: int) -> None:
 
 
 class _Pager:
-    def __init__(self, lines: List[str], title: str, ch_title: str) -> None:
+    def __init__(self, lines: list[str], title: str, ch_title: str) -> None:
         self._lines    = lines
         self._title    = title
         self._ch_title = ch_title
@@ -113,11 +112,11 @@ class _Pager:
                 pos += page_size
 
 
-def read_novel(segments: List[Tuple[str, str]],
+def read_novel(segments: list[tuple[str, str]],
                result: SearchResult, chapter: Chapter) -> None:
     cols, _  = shutil.get_terminal_size((80, 24))
     viewer   = _find_viewer()
-    text_buf: List[str] = []
+    text_buf: list[str] = []
 
     with tempfile.TemporaryDirectory(prefix="yuri_novel_") as tmpdir:
         img_index = 0
@@ -159,18 +158,18 @@ class _HtmlStripper(HTMLParser):
         self._buf  = ""
         self._skip = 0
 
-    def _flush(self, out: List[str]) -> None:
+    def _flush(self, out: list[str]) -> None:
         text = re.sub(r"\n{3,}", "\n\n", self._buf).strip()
         if text:
             out.append(text)
         self._buf = ""
 
     def strip(self, html_text: str) -> str:
-        out: List[str] = []
+        out: list[str] = []
         self._buf  = ""
         self._skip = 0
         self.feed(html_text)
-        out_inner: List[str] = []
+        out_inner: list[str] = []
         self._flush(out_inner)
         return "\n\n".join(out_inner)
 
@@ -202,7 +201,7 @@ def _epub_item_path(opf_dir: str, href: str) -> str:
     return f"{opf_dir}/{href}"
 
 
-def _epub_segments(path: Path) -> List[Tuple[str, str]]:
+def _epub_segments(path: Path) -> list[tuple[str, str]]:
     try:
         with zipfile.ZipFile(path) as zf:
             container = ET.fromstring(zf.read("META-INF/container.xml"))
@@ -222,7 +221,7 @@ def _epub_segments(path: Path) -> List[Tuple[str, str]]:
             ]
 
             stripper  = _HtmlStripper()
-            segments: List[Tuple[str, str]] = []
+            segments: list[tuple[str, str]] = []
 
             for idref in spine:
                 href = manifest.get(idref or "", "")
@@ -245,7 +244,7 @@ def _epub_segments(path: Path) -> List[Tuple[str, str]]:
         return [("text", f"could not read epub: {exc}")]
 
 
-def _pdf_segments(path: Path) -> List[Tuple[str, str]]:
+def _pdf_segments(path: Path) -> list[tuple[str, str]]:
     if shutil.which("pdftotext"):
         try:
             result = subprocess.run(
