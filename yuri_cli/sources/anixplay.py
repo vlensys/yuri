@@ -124,7 +124,7 @@ def episodes(show_id: str, mode: str) -> list[Chapter]:
     return chapters
 
 
-def streams(show_id: str, episode_id: str, mode: str) -> List[Stream]:
+def streams(show_id: str, episode_id: str, mode: str) -> list[Stream]:
     data = get_json(
         _build_url(
             "/api/stream",
@@ -132,7 +132,7 @@ def streams(show_id: str, episode_id: str, mode: str) -> List[Stream]:
         )
     )
     results = _unwrap_results(data)
-    streams_out: List[Stream] = []
+    streams_out: list[Stream] = []
 
     streaming_link = results.get("streamingLink") or {}
     link = streaming_link.get("link") or {}
