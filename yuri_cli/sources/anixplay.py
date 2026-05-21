@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import re
 import urllib.parse
+import urllib.request
 from dataclasses import dataclass
 
 from yuri_cli.http import get_json
@@ -124,6 +127,68 @@ def episodes(show_id: str, mode: str) -> list[Chapter]:
     return chapters
 
 
+def _resolve_player(player_url: str) -> Stream | None:
+    try:
+        resolve_req = urllib.request.Request(
+            player_url + "/resolve",
+            headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+                "Referer": player_url,
+                "X-Requested-With": "ZenPlayer",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(resolve_req, timeout=10) as resp:
+            resolved = json.loads(resp.read())
+        vidwish_url = resolved.get("url") or ""
+        if not vidwish_url:
+            return None
+
+        page_req = urllib.request.Request(
+            vidwish_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+                "Referer": _REFERER,
+            },
+        )
+        with urllib.request.urlopen(page_req, timeout=10) as resp:
+            html = resp.read().decode(errors="replace")
+
+        data_id_match = re.search(r'data-id="(\d+)"', html)
+        if not data_id_match:
+            return None
+        data_id = data_id_match.group(1)
+
+        parsed_host = urllib.parse.urlparse(vidwish_url)
+        get_sources_url = f"{parsed_host.scheme}://{parsed_host.netloc}/stream/getSources?id={data_id}"
+
+        src_req = urllib.request.Request(
+            get_sources_url,
+            headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+                "Referer": vidwish_url,
+                "X-Requested-With": "XMLHttpRequest",
+                "Accept": "application/json",
+            },
+        )
+        with urllib.request.urlopen(src_req, timeout=10) as resp:
+            sources_data = json.loads(resp.read())
+
+        hls_url = (sources_data.get("sources") or {}).get("file") or ""
+        if not hls_url:
+            return None
+
+        subtitle_url = ""
+        for track in sources_data.get("tracks") or []:
+            if track.get("kind") == "captions" and track.get("label") == "English":
+                subtitle_url = track.get("file") or ""
+                break
+
+        return Stream(url=hls_url, referer=vidwish_url, subtitle_url=subtitle_url, source="vidwish")
+    except Exception:
+        return None
+
+
 def streams(show_id: str, episode_id: str, mode: str) -> list[Stream]:
     data = get_json(
         _build_url(
@@ -132,23 +197,26 @@ def streams(show_id: str, episode_id: str, mode: str) -> list[Stream]:
         )
     )
     results = _unwrap_results(data)
-    streams_out: list[Stream] = []
 
+    player_urls: list[tuple[str, str]] = []
     streaming_link = results.get("streamingLink") or {}
     link = streaming_link.get("link") or {}
-    url = link.get("file") or streaming_link.get("iframe") or ""
-    if url:
-        streams_out.append(Stream(url=url, referer=_REFERER, source=streaming_link.get("server") or "anixplay"))
+    primary_url = link.get("file") or ""
+    if primary_url and "aniapi.anizen.tr/player/" in primary_url:
+        player_urls.append((primary_url, streaming_link.get("server") or "anixplay"))
 
     for server in results.get("servers") or []:
         embed = server.get("embed") or ""
-        if not embed or any(stream.url == embed for stream in streams_out):
-            continue
-        streams_out.append(
-            Stream(
-                url=embed,
-                referer=_REFERER,
-                source=server.get("serverName") or "anixplay",
-            )
-        )
+        if embed and "aniapi.anizen.tr/player/" in embed and embed not in [u for u, _ in player_urls]:
+            player_urls.append((embed, server.get("serverName") or "anixplay"))
+
+    seen_urls: set[str] = set()
+    streams_out: list[Stream] = []
+    for player_url, source in player_urls:
+        stream = _resolve_player(player_url)
+        if stream is not None and stream.url not in seen_urls:
+            seen_urls.add(stream.url)
+            stream.source = source
+            streams_out.append(stream)
+
     return streams_out
