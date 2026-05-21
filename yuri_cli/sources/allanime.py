@@ -80,6 +80,21 @@ def is_yuri_media(show: dict) -> bool:
     return bool(_YURI_PATTERN.search(_show_text(show)))
 
 
+def _search_queries(query: str) -> list[str]:
+    queries = [query]
+    normalized = query.lower()
+    replacements = {"i'll": "ill", "i'm": "im", "'": ""}
+    for old, new in replacements.items():
+        if old in normalized:
+            queries.append(normalized.replace(old, new))
+    if "freaking way" in normalized or "watanare" in normalized:
+        queries.append("watanare")
+        queries.append("watashi ga koibito ni nareru wake nai")
+    if "villainess" in normalized or "villain" in normalized:
+        queries.append("watashi no oshi wa akuyaku reijou")
+    return list(dict.fromkeys(q for q in queries if q.strip()))
+
+
 def search(query: str, limit: int = 20) -> list[SearchResult]:
     gql = """
     query (
@@ -108,27 +123,33 @@ def search(query: str, limit: int = 20) -> list[SearchResult]:
       }
     }
     """
-    data = _graphql(gql, {
-        "search": {"allowAdult": False, "allowUnknown": False, "query": query},
-        "limit": limit,
-        "page": 1,
-        "translationType": "sub",
-        "countryOrigin": "ALL",
-    })
+    seen: set[str] = set()
     results: list[SearchResult] = []
-    for show in data.get("data", {}).get("shows", {}).get("edges", []) or []:
-        if not is_yuri_media(show):
-            continue
-        tags = [str(tag) for tag in (show.get("genres") or []) + (show.get("tags") or [])]
-        results.append(SearchResult(
-            source="allanime",
-            id=show["_id"],
-            title=show.get("name") or "unknown",
-            kind="anime",
-            tags=tags,
-            description=show.get("description") or "",
-            cover_url=show.get("thumbnail") or "",
-        ))
+    for q in _search_queries(query):
+        data = _graphql(gql, {
+            "search": {"allowAdult": False, "allowUnknown": False, "query": q},
+            "limit": limit,
+            "page": 1,
+            "translationType": "sub",
+            "countryOrigin": "ALL",
+        })
+        for show in data.get("data", {}).get("shows", {}).get("edges", []) or []:
+            show_id = show.get("_id") or ""
+            if not show_id or show_id in seen:
+                continue
+            if not is_yuri_media(show):
+                continue
+            seen.add(show_id)
+            tags = [str(tag) for tag in (show.get("genres") or []) + (show.get("tags") or [])]
+            results.append(SearchResult(
+                source="allanime",
+                id=show_id,
+                title=show.get("name") or "unknown",
+                kind="anime",
+                tags=tags,
+                description=show.get("description") or "",
+                cover_url=show.get("thumbnail") or "",
+            ))
     return results
 
 
