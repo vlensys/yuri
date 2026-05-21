@@ -1,131 +1,18 @@
 from __future__ import annotations
 
-import http.server
 import shutil
-import socket
 import subprocess
 import sys
-import threading
 import time
-import urllib.parse
 
 from yuri_cli.lock import filter_kind, filter_yuri
 from yuri_cli.models import Chapter, SearchResult
 from yuri_cli.progress import get_last, set_last
 from yuri_cli.reader import pick
-from yuri_cli.sources import allanime, anixplay
+from yuri_cli.sources import allanime
 
 
-_WATCH_SOURCES = (("allanime", allanime), ("anixplay", anixplay))
-_CF_DOMAINS = ("fxpy7.watching.onl", "cinewave2.site", "cloudvideo.lat", "watching.onl")
-
-
-def _needs_proxy(url: str) -> bool:
-    return any(d in url for d in _CF_DOMAINS)
-
-
-def _free_port() -> int:
-    with socket.socket() as s:
-        s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
-
-
-def _curl_fetch(url: str, referer: str) -> tuple[int, bytes, str]:
-    result = subprocess.run(
-        [
-            "curl", "-s", "-L",
-            "--max-time", "20",
-            "-H", f"Referer: {referer}",
-            "-w", "\n__STATUS__%{http_code}",
-            url,
-        ],
-        capture_output=True,
-        timeout=25,
-    )
-    raw = result.stdout
-    marker = b"\n__STATUS__"
-    idx = raw.rfind(marker)
-    if idx == -1:
-        return 0, raw, "application/octet-stream"
-    body = raw[:idx]
-    status = int(raw[idx + len(marker):].strip() or b"0")
-    return status, body, "application/octet-stream"
-
-
-def _rewrite_m3u8(content: bytes, proxy_base: str, cdn_base: str, referer: str) -> bytes:
-    text = content.decode(errors="replace")
-    lines = []
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#"):
-            lines.append(line)
-            continue
-        if not stripped:
-            lines.append(line)
-            continue
-        if stripped.startswith("http://") or stripped.startswith("https://"):
-            encoded = urllib.parse.quote(stripped, safe="")
-            ref_encoded = urllib.parse.quote(referer, safe="")
-            lines.append(f"{proxy_base}/p?u={encoded}&r={ref_encoded}")
-        else:
-            full = cdn_base.rstrip("/") + "/" + stripped.lstrip("/")
-            encoded = urllib.parse.quote(full, safe="")
-            ref_encoded = urllib.parse.quote(referer, safe="")
-            lines.append(f"{proxy_base}/p?u={encoded}&r={ref_encoded}")
-    return "\n".join(lines).encode()
-
-
-def _make_proxy_handler(cdn_base: str, referer: str, proxy_base: str):
-    class Handler(http.server.BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            parsed = urllib.parse.urlparse(self.path)
-            params = urllib.parse.parse_qs(parsed.query)
-
-            if parsed.path == "/p":
-                target_url = urllib.parse.unquote(params.get("u", [""])[0])
-                ref = urllib.parse.unquote(params.get("r", [referer])[0])
-            else:
-                path = parsed.path.lstrip("/")
-                target_url = cdn_base.rstrip("/") + "/" + path
-                ref = referer
-
-            status, body, _ = _curl_fetch(target_url, ref)
-            if status == 0:
-                status = 502
-
-            ct = "application/octet-stream"
-            if target_url.endswith(".m3u8") or b"#EXTM3U" in body[:20]:
-                ct = "application/vnd.apple.mpegurl"
-                body = _rewrite_m3u8(body, proxy_base, target_url.rsplit("/", 1)[0], ref)
-
-            self.send_response(status)
-            self.send_header("Content-Type", ct)
-            self.send_header("Content-Length", str(len(body)))
-            self.end_headers()
-            self.wfile.write(body)
-
-        def log_message(self, *args) -> None:
-            pass
-
-    return Handler
-
-
-def _start_hls_proxy(stream_url: str, referer: str) -> str:
-    port = _free_port()
-    proxy_base = f"http://127.0.0.1:{port}"
-
-    parsed = urllib.parse.urlparse(stream_url)
-    cdn_base = f"{parsed.scheme}://{parsed.netloc}{parsed.path.rsplit('/', 1)[0]}"
-
-    handler = _make_proxy_handler(cdn_base, referer, proxy_base)
-    server = http.server.HTTPServer(("127.0.0.1", port), handler)
-    thread = threading.Thread(target=server.serve_forever, daemon=True)
-    thread.start()
-
-    filename = stream_url.rsplit("/", 1)[-1]
-    return f"{proxy_base}/{filename}"
-
-
+_WATCH_SOURCES = (("allanime", allanime),)
 _SOURCE_BY_NAME = dict(_WATCH_SOURCES)
 
 
@@ -148,21 +35,17 @@ def _stop_player(player: subprocess.Popen | None) -> None:
 
 
 def _play(stream, title: str, episode: str) -> subprocess.Popen | None:
-    url = stream.url
-    if _needs_proxy(url):
-        url = _start_hls_proxy(url, stream.referer or "")
-
     command = [
         _player(),
         "--really-quiet",
         "--no-terminal",
         f"--force-media-title={title} episode {episode}",
     ]
-    if stream.referer and not _needs_proxy(stream.url):
+    if stream.referer:
         command.append(f"--referrer={stream.referer}")
     if stream.subtitle_url:
         command.append(f"--sub-file={stream.subtitle_url}")
-    command.append(url)
+    command.append(stream.url)
     try:
         player = subprocess.Popen(
             command,
@@ -173,8 +56,7 @@ def _play(stream, title: str, episode: str) -> subprocess.Popen | None:
         )
     except KeyboardInterrupt:
         return None
-    poll_delay = 3.0 if _needs_proxy(stream.url) else 0.5
-    time.sleep(poll_delay)
+    time.sleep(0.5)
     if player.poll() is not None:
         return None
     return player
