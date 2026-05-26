@@ -1,5 +1,4 @@
-# Maintainer: yuri-cli maintainers <https://github.com/vlensys/yuri>
-pkgname=yuri-cli
+pkgname=yuri
 pkgver=0.1.0
 pkgrel=1
 pkgdesc="yuri straight in your terminal!"
@@ -9,10 +8,7 @@ license=('MIT')
 depends=('python' 'python-setuptools' 'mpv')
 optdepends=(
   'fzf: interactive fuzzy selection menu'
-  'kitty: GPU-accelerated image viewer for manga pages'
-  'chafa: image viewer for manga pages (fallback)'
-  'tiv: image viewer for manga pages (fallback)'
-  'openssl: stream decryption required for AllAnime source'
+  'openssl: stream decryption for AllAnime'
 )
 source=("$pkgname-$pkgver.tar.gz::https://github.com/vlensys/yuri/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
