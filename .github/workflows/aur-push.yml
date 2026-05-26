@@ -35,8 +35,8 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           VERSION="${{ steps.ver.outputs.value }}"
-          git config user.name "${{ secrets.AUR_USERNAME }}"
-          git config user.email "${{ secrets.AUR_EMAIL }}"
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com"
           git tag "v${VERSION}"
           git push origin "v${VERSION}"
 
@@ -61,8 +61,8 @@ jobs:
         with:
           pkgname: yuri
           pkgbuild: ./PKGBUILD
-          commit_username: ${{ secrets.AUR_USERNAME }}
-          commit_email: ${{ secrets.AUR_EMAIL }}
+          commit_username: ${{ secrets.AUR_USERNAME || github.actor }}
+          commit_email: ${{ secrets.AUR_EMAIL || format('{0}+{1}@users.noreply.github.com', github.actor_id, github.actor) }}
           ssh_private_key: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
           commit_message: "Update to v${{ steps.ver.outputs.value }}"
           ssh_keyscan_types: rsa,ecdsa,ed25519
