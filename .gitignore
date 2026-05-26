@@ -12,9 +12,6 @@ AGENTS.md
 .venv/
 venv/
 
-tests/
-test_*.py
-*_test.py
 
 .DS_Store
 Thumbs.db
